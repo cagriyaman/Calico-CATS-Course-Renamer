@@ -9,7 +9,7 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.0.1-blue.svg)](CHANGELOG.md)
 
-**İstanbul Kültür Üniversitesi CATS (Course Activity Tracking System) portalında ders isimlerini kişiselleştirmenizi sağlayan tarayıcı uzantısı. Chrome, Edge, Firefox (Desktop & Android) destekler.**
+**İstanbul Kültür Üniversitesi CATS (Course Activity Tracking System) portalında ders isimlerini kişiselleştirmenizi sağlayan tarayıcı uzantısı. Chrome, Edge, Opera, Yandex, Brave, Firefox (Desktop & Android) destekler.**
 
 > ⚠️ **Yasal Uyarı:** Bu uzantı, İstanbul Kültür Üniversitesi veya CATS sistemi ile resmi bir bağlantıya sahip değildir. Bağımsız bir öğrenci projesidir.
 
