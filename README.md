@@ -111,7 +111,7 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 
 ### Firefox Android
 
-1. **Firefox 128+ Gerekli**
+1. **Firefox 140+ Gerekli**
    - Google Play'den Firefox'u güncelleyin
 
 2. **AMO Üzerinden Yükleme (Önerilen)**
@@ -185,8 +185,8 @@ Orijinal:  "BLG101 - Introduction to Programming - Fall 2024"
 | Microsoft Edge | 88+ | ✅ Tam Destek |
 | Brave | 1.20+ | ✅ Tam Destek |
 | Opera | 74+ | ⚠️ Test Edilmedi |
-| Firefox Desktop | 128+ | ✅ Tam Destek |
-| Firefox Android | 128+ | ✅ Tam Destek |
+| Firefox Desktop | 140+ | ✅ Tam Destek |
+| Firefox Android | 142+ | ✅ Tam Destek |
 
 ### Mimari
 
@@ -308,7 +308,7 @@ calico/
 ### Gereksinimler
 
 - Node.js 16+ (sadece linting için, opsiyonel)
-- Chrome 88+ veya Firefox 128+
+- Chrome 88+ veya Firefox 140+
 - Git
 
 ### Yerel Geliştirme
