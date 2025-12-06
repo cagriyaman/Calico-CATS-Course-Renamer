@@ -57,7 +57,7 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 ## 📸 Ekran Görüntüleri
 
 ### Uzantı Arayüzü
-```
+
 ![Eklenti Arayüzü](images/calico_screenshot_1.png)
 
 ```
