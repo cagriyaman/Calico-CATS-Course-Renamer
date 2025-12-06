@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calico | CATS Ders Yeniden Adlandırıcı</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo-wrapper">
+      <img src="logo.png" alt="Calico Logo" class="header-logo">
+    </div>
+    <div class="header-content">
+      <span class="header-title">Calico</span>
+      <span class="header-divider">|</span>
+      <div class="header-subtitle">
+        <span>CATS Ders</span>
+        <span>Yeniden Adlandırıcı</span>
+      </div>
+    </div>
+    <div class="header-toggle">
+      <label class="toggle-switch" title="Uzantıyı Aç/Kapat">
+        <input type="checkbox" id="extensionToggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content-area">
+    <div id="autoCourseList" class="course-list">
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>Dersler yükleniyor...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <button id="saveAll" class="btn-success">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Kaydet
+    </button>
+
+    <button id="clearMappings" class="btn-danger">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+      Tümünü Sil
+    </button>
+  </div>
+
+  <!-- Compact Footer -->
+  <div class="compact-footer">
+    <div class="footer-center">
+      <button id="aboutBtn" class="footer-item">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4"/>
+          <circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/>
+        </svg>
+        <span>Hakkında</span>
+      </button>
+
+      <span class="footer-separator"></span>
+
+      <a href="https://forms.gle/kVZUQ7E5xroRoZMr7" target="_blank" rel="noopener noreferrer" class="footer-item">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>Geri Bildirim</span>
+      </a>
+
+      <span class="footer-separator"></span>
+
+      <a href="https://tr.linkedin.com/in/cgrymn02" target="_blank" rel="noopener noreferrer" class="footer-item support-link">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <span>Destek Ol</span>
+      </a>
+    </div>
+    <span class="footer-version">v1.0.0</span>
+  </div>
+
+  <!-- Status Message -->
+  <div id="status" class="status-message"></div>
+
+  <!-- About Modal -->
+  <div id="aboutModal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content about-modal">
+      <div class="modal-header">
+        <h2>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+          Hakkında
+        </h2>
+        <button id="closeAbout" class="btn-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="about-body">
+        <div class="about-title">
+          <strong>Calico</strong>
+          <span>CATS Ders Yeniden Adlandırıcı</span>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-header">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <path d="M12 9v4"/>
+              <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
+            </svg>
+            <span>Yasal Uyarı</span>
+          </div>
+          <p>Bu uzantı, İstanbul Kültür Üniversitesi veya CATS sistemi ile resmi bir bağlantıya sahip değildir.</p>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-header">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Gizlilik</span>
+          </div>
+          <p>Verileriniz tarayıcınızın depolamasında tutulur ve tarayıcı ayarlarınıza bağlı olarak hesabınızla senkronize edilebilir. Geliştirici tarafından herhangi bir harici sunucuya veri gönderilmez.</p>
+        </div>
+
+        <a href="https://github.com/cagriyaman/Calico-CATS-Course-Renamer" target="_blank" rel="noopener noreferrer" class="about-link">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Detaylı bilgi ve kaynak kodu
+        </a>
+
+        <div class="about-footer">
+          <span>Sürüm 1.0.1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emoji Modal -->
+  <div id="emojiPickerModal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+          Emoji Seç
+        </h2>
+        <button id="closeEmoji" class="btn-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="emoji-categories">
+        <button class="category-btn active" data-category="objects">Nesneler</button>
+        <button class="category-btn" data-category="symbols">Semboller</button>
+        <button class="category-btn" data-category="activities">Aktiviteler</button>
+        <button class="category-btn" data-category="animals">Doğa</button>
+        <button class="category-btn" data-category="travel">Yerler</button>
+        <button class="category-btn" data-category="food">Yemek</button>
+        <button class="category-btn" data-category="smileys">İfadeler</button>
+      </div>
+
+      <div id="emojiGrid" class="emoji-grid"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <!-- Browser API Polyfill - Chrome/Firefox uyumluluğu (EN ÖNCE YÜKLENMELİ) -->
+  <script src="browser-polyfill.js"></script>
+  <script src="config.js"></script>
+  <script src="storage.js"></script>
+  <script src="emojis.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
