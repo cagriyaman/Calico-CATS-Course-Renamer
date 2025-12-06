@@ -283,7 +283,6 @@ calico/
 │
 ├── 📄 README.md              # Bu dosya
 ├── 📄 CHANGELOG.md           # Sürüm geçmişi
-├── 📄 ROADMAP.md             # Gelecek planları
 ├── 📄 PRIVACY.md             # Gizlilik politikası
 └── 📄 LICENSE                # MIT Lisansı
 ```
