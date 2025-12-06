@@ -4,7 +4,7 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 İstanbul Kültür Üniversitesi öğrenci portalı CATS'in arayüzünü geliştiren bir tarayıcı eklentisi.
 
 [![Chrome Extension](https://img.shields.io/badge/Chrome-88+-4285F4?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/)
-[![Firefox Add-on](https://img.shields.io/badge/Firefox-128+-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/)
+[![Firefox Add-on](https://img.shields.io/badge/Firefox-140+-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-34A853?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.0.1-blue.svg)](CHANGELOG.md)
