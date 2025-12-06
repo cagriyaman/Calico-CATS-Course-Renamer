@@ -190,10 +190,6 @@ Saklanan tüm verilerinizi görmek için:
 - Tarayıcı uzantı yöneticisinden uzantıyı kaldırın
 - Bu işlem tüm yerel verileri siler
 
-#### 6.3 Veri Taşınabilirliği
-
-Şu anda verilerinizi dışa aktarma özelliği bulunmamaktadır. Bu özellik gelecek sürümlerde planlanmaktadır (bkz. [ROADMAP.md](ROADMAP.md)).
-
 ---
 
 ### 7. Çocukların Gizliliği
