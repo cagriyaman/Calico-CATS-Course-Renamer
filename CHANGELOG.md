@@ -7,6 +7,64 @@ ve [Semantic Versioning](https://semver.org/spec/v2.0.0.html) kullanır.
 
 ---
 
+## [1.0.2] - 2024-12-17
+
+### 🎨 UI/UX İyileştirmeleri & Hata Düzeltmeleri
+
+Bu sürüm, kullanıcı arayüzünde önemli iyileştirmeler ve ders tespit mekanizmasında kritik bir hata düzeltmesi içerir.
+
+---
+
+### 🐛 Düzeltilen
+
+#### Ders Tespit Sorunu
+- **Retry Mekanizması:** "Ders bulunamadı" ekranında takılma sorunu düzeltildi
+- **Akıllı Yeniden Deneme:** Ders bulunamazsa 1 saniye aralıklarla 10 kez tekrar dener
+- **Çoklu Tetikleme Noktaları:** `DOMContentLoaded`, `window.load` ve `MutationObserver` ile çoklu tespit
+- **Hızlı İlk Tespit:** İlk deneme artık throttle olmadan anında çalışır
+
+---
+
+### ✨ Eklenen
+
+#### Kullanıcı Arayüzü
+- **Toggle Durum Yazısı:** Açma/kapama toggle'ının altında "Açık" / "Kapalı" yazısı
+- **Emoji Butonu + İkonu:** Emoji ekleme butonunun sağ üstünde + işareti (ne için olduğu daha anlaşılır)
+- **Destek Ol Linki:** Footer'a GitHub Sponsors bağlantısı eklendi
+
+#### Görsel Geri Bildirim
+- **Kaydedilmiş İsim Rengi:** Kaydedilen özel isimler turuncu renkte gösterilir
+- **Değişiklik Takibi:** Kullanıcı ismi değiştirdiğinde renk siyaha döner (kaydedilmemiş değişiklik)
+- **Silme Sonrası Uyarı:** Tekli ders silme işleminde "Temizlendi, sayfayı yenileyin" mesajı
+
+---
+
+### 🔧 Değiştirilen
+
+#### Görsel İyileştirmeler
+- **Tekli Silme Butonu:** ✕ ikonu çöp kutusu ikonuyla değiştirildi (Tümünü Sil ile tutarlılık)
+- **Scrollbar Rengi:** Tüm scrollbar'lar turuncu renge güncellendi (tema ile uyum)
+- **Toggle Text Pozisyonu:** Açık/Kapalı yazısı toggle'ın yanından altına taşındı
+
+#### Teknik
+- **content.js:** Retry mekanizması ve `coursesFound` flag'i eklendi
+- **options.js:** Toggle text güncelleme, input-saved class yönetimi
+- **options.css:** Yeni stiller (toggle-text, input-saved, plus-icon, scrollbar)
+
+---
+
+### 📊 Dosya Değişiklikleri
+
+| Dosya | Değişiklik |
+|-------|------------|
+| `content.js` | Retry mekanizması (+138 satır) |
+| `options.js` | UI güncellemeleri (+19 satır) |
+| `options.css` | Yeni stiller (+47 satır) |
+| `options.html` | Toggle text span (+1 satır) |
+| `manifest.json` | Versiyon 1.0.2 |
+
+---
+
 ## [1.0.1] - 2024-12-05
 
 ### 🦊 Firefox & Cross-Browser Desteği
@@ -182,9 +240,6 @@ calico/
 ├── options.js             # Popup JavaScript
 ├── emojis.js              # Kategorize emoji veritabanı
 ├── logo.png               # Popup header logosu
-├── images/                 # Extension ekran alıntıları
-│   ├── calico_screenshot_1.png
-│
 ├── icons/                 # Extension ikonları
 │   ├── icon16.png
 │   ├── icon32.png
@@ -192,6 +247,7 @@ calico/
 │   └── icon128.png
 ├── README.md              # Kullanıcı ve geliştirici dokümantasyonu
 ├── CHANGELOG.md           # Bu dosya
+├── ROADMAP.md             # Gelecek sürüm planları
 └── LICENSE                # MIT Lisansı
 ```
 
@@ -250,6 +306,7 @@ External code review sonrası ek optimizasyonlar:
 
 ## [Unreleased]
 
+Gelecek sürümlerde planlananlar için [ROADMAP.md](ROADMAP.md) dosyasına bakınız.
 
 ### 🔮 Planlanıyor (v2.0.0)
 - ES6+ modernizasyonu (var → const/let)
@@ -277,6 +334,7 @@ External code review sonrası ek optimizasyonlar:
 
 | Sürüm | Tarih | Öne Çıkan |
 |-------|-------|-----------|
+| [1.0.2](#102---2024-12-17) | 2024-12-17 | 🎨 UI/UX İyileştirmeleri & Hata Düzeltmeleri |
 | [1.0.1](#101---2024-12-05) | 2024-12-05 | 🦊 Firefox & Cross-Browser Desteği |
 | [1.0.0](#100---2024-12-04) | 2024-12-04 | 🎉 İlk Sürüm (Chrome) |
 

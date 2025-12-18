@@ -293,6 +293,10 @@ function createCourseRow(courseName, customName) {
       <circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/>
       <circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/>
     </svg>
+    <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </svg>
   `;
   emojiBtn.addEventListener("click", function() {
     openEmojiPicker(courseName);
@@ -310,14 +314,13 @@ function createCourseRow(courseName, customName) {
   const inputWrapper = document.createElement("div");
   inputWrapper.className = "input-wrapper";
 
-  // Silme butonu
+  // Silme butonu (çöp kutusu ikonu)
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "icon-btn danger";
   deleteBtn.title = "Temizle";
   deleteBtn.innerHTML = `
     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="18" y1="6" x2="6" y2="18"/>
-      <line x1="6" y1="6" x2="18" y2="18"/>
+      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
     </svg>
   `;
   deleteBtn.addEventListener("click", function() {
@@ -327,6 +330,8 @@ function createCourseRow(courseName, customName) {
   // Input değişiklik takibi ve validation
   input.addEventListener("input", function() {
     input.dataset.modified = "true";
+    // Değişiklik yapılınca kaydedilmiş stilini kaldır
+    input.classList.remove("input-saved");
     updateCharCounter(input, input.parentElement.querySelector(".char-counter"));
     validateAndShowError(input);
   });
@@ -357,10 +362,12 @@ function createCourseRow(courseName, customName) {
   row.appendChild(header);
   row.appendChild(inputWrapper);
 
-  // Başlangıçta değer varsa sayacı göster
+  // Başlangıçta değer varsa sayacı göster ve kaydedilmiş stilini uygula
   if (customName && customName.length > 0) {
     var counter = inputWrapper.querySelector(".char-counter");
     if (counter) counter.classList.add("visible");
+    // Kaydedilmiş değer varsa turuncu stil uygula
+    input.classList.add("input-saved");
   }
 
   return row;
@@ -401,7 +408,7 @@ function handleDeleteCourse(courseName) {
       
       Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: courseMap }, function() {
         renderCourseList(detectedCourses, courseMap);
-        showStatus("✓ Temizlendi");
+        showStatus("✓ Temizlendi, sayfayı yenileyin", 3000);
       }, showError);
     } else {
       showStatus("Zaten temiz");
@@ -451,9 +458,13 @@ function handleSaveAll() {
       checkQuotaBeforeSave({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: courseMap }, function() {
         // Quota uygun, kaydet
         Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: courseMap }, function() {
-          // Modified flag'leri temizle
+          // Modified flag'leri temizle ve kaydedilmiş stilini uygula
           inputs.forEach(function(input) {
             input.dataset.modified = "false";
+            // Değer varsa kaydedilmiş stilini uygula
+            if (input.value.trim()) {
+              input.classList.add("input-saved");
+            }
           });
           showStatus("✓ " + saveCount + " ders kaydedildi", 2000, "success");
         }, showError);
@@ -617,6 +628,12 @@ function loadAndRender() {
       els.extensionToggle.checked = extensionEnabled;
     }
     
+    // Toggle text'i güncelle
+    var toggleText = document.getElementById("toggleText");
+    if (toggleText) {
+      toggleText.textContent = extensionEnabled ? "Açık" : "Kapalı";
+    }
+    
     // UI state'ini güncelle
     updateUIState();
     
@@ -645,6 +662,12 @@ function updateUIState() {
  */
 function handleToggleChange(enabled) {
   extensionEnabled = enabled;
+  
+  // Toggle text'i güncelle
+  var toggleText = document.getElementById("toggleText");
+  if (toggleText) {
+    toggleText.textContent = enabled ? "Açık" : "Kapalı";
+  }
   
   // Storage'a kaydet
   Storage.set({ [CONFIG.STORAGE_KEYS.EXTENSION_ENABLED]: enabled }, function() {

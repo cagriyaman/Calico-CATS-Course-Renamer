@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Calico | CATS Ders Yeniden Adlandırıcı",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CATS portalında ders isimlerini otomatik algılar ve istediğiniz gibi yeniden adlandırır.",
 
   "minimum_chrome_version": "88",

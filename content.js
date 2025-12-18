@@ -1,9 +1,6 @@
 /**
  * Calico - Content Script
  * CATS portalında ders isimlerini yeniden adlandırır.
- * 
- * Bağımlılıklar: config.js, storage.js (ErrorHandler dahil)
- * Not: manifest'te önce yüklenmeli
  */
 
 /**
@@ -55,7 +52,6 @@ function findElements(primarySelectors, fallbackSelectors, logKey) {
   }
   
   // Element bulunamadıysa sessizce boş dizi döndür
-  // (Sayfa henüz yüklenmemiş olabilir, MutationObserver tekrar deneyecek)
   return elements;
 }
 
@@ -90,7 +86,8 @@ function findDetectionElements(primarySelector, fallbackSelector) {
  * Ders isimlerini courseMap'e göre değiştirir
  * @param {Object} courseMap - Orijinal isim -> yeni isim eşleştirmesi
  */
-function renameCourses(courseMap = {}) {
+function renameCourses(courseMap) {
+  courseMap = courseMap || {};
   // courseMap boşsa işlem yapma
   var keys = Object.keys(courseMap);
   if (!keys.length) return;
@@ -122,17 +119,77 @@ function renameCourses(courseMap = {}) {
 }
 
 // ============================================
-// Ders Tespiti (Throttled)
+// Ders Tespiti (Throttled + Retry)
 // ============================================
 
-let lastDetectedCourses = null;
-let detectTimeout = null;
+var lastDetectedCourses = null;
+var detectTimeout = null;
+var retryTimeout = null;
+var retryCount = 0;
+var coursesFound = false;  // Ders bulundu mu flag'i
+
+// Retry konfigürasyonu
+var RETRY_CONFIG = {
+  MAX_RETRIES: 10,         // Maksimum retry sayısı
+  RETRY_INTERVAL: 1000,    // Retry aralığı (ms) - 1 saniye
+  INITIAL_DELAY: 100       // İlk deneme gecikmesi (ms) - çok kısa
+};
+
+/**
+ * Sayfadaki dersleri tespit eder (iç fonksiyon).
+ * @returns {string[]} Tespit edilen dersler
+ */
+function doDetectCourses() {
+  // Extension kapalıysa işlem yapma
+  if (!extensionEnabled) {
+    return [];
+  }
+
+  if (!Storage.isContextValid()) {
+    cleanup();
+    return [];
+  }
+
+  // Fallback destekli element bulma
+  var items = findDetectionElements(
+    CONFIG.SELECTORS.COURSE_DETECTION,
+    CONFIG.SELECTORS.COURSE_DETECTION_FALLBACK
+  );
+  
+  var courses = Array.from(items)
+    .map(function(el) {
+      // Önce data-original-name'e bak (değiştirilmiş olabilir)
+      // Yoksa mevcut innerText'i al (orijinal)
+      return normalize(el.dataset.originalName || el.innerText);
+    })
+    .filter(function(t) {
+      return t && !CONFIG.FILTERS.EXCLUDED_NAMES.includes(t);
+    });
+  
+  var uniqueCourses = [];
+  for (var i = 0; i < courses.length; i++) {
+    if (uniqueCourses.indexOf(courses[i]) === -1) {
+      uniqueCourses.push(courses[i]);
+    }
+  }
+  
+  var coursesString = JSON.stringify(uniqueCourses);
+  
+  // Sadece değişiklik varsa storage'a yaz
+  if (coursesString !== lastDetectedCourses) {
+    lastDetectedCourses = coursesString;
+    Storage.set({ [CONFIG.STORAGE_KEYS.DETECTED_COURSES]: uniqueCourses });
+  }
+  
+  return uniqueCourses;
+}
 
 /**
  * Sayfadaki dersleri tespit eder ve storage'a kaydeder.
  * Throttle mekanizması ile gereksiz yazmaları önler.
+ * @param {boolean} immediate - true ise throttle olmadan hemen çalışır
  */
-function detectCourses() {
+function detectCourses(immediate) {
   // Extension kapalıysa işlem yapma
   if (!extensionEnabled) {
     return;
@@ -143,52 +200,79 @@ function detectCourses() {
     return;
   }
 
+  // Immediate mod - throttle olmadan hemen çalış
+  if (immediate) {
+    doDetectCourses();
+    return;
+  }
+
+  // Throttled mod
   if (detectTimeout) {
     clearTimeout(detectTimeout);
   }
   
   detectTimeout = setTimeout(function() {
-    // Extension kapalıysa işlem yapma
-    if (!extensionEnabled) {
-      return;
-    }
-
-    if (!Storage.isContextValid()) {
-      cleanup();
-      return;
-    }
-
-    // Fallback destekli element bulma
-    var items = findDetectionElements(
-      CONFIG.SELECTORS.COURSE_DETECTION,
-      CONFIG.SELECTORS.COURSE_DETECTION_FALLBACK
-    );
-    
-    var courses = Array.from(items)
-      .map(function(el) {
-        // Önce data-original-name'e bak (değiştirilmiş olabilir)
-        // Yoksa mevcut innerText'i al (orijinal)
-        return normalize(el.dataset.originalName || el.innerText);
-      })
-      .filter(function(t) {
-        return t && !CONFIG.FILTERS.EXCLUDED_NAMES.includes(t);
-      });
-    
-    var uniqueCourses = [];
-    for (var i = 0; i < courses.length; i++) {
-      if (uniqueCourses.indexOf(courses[i]) === -1) {
-        uniqueCourses.push(courses[i]);
-      }
-    }
-    
-    var coursesString = JSON.stringify(uniqueCourses);
-    
-    // Sadece değişiklik varsa storage'a yaz
-    if (coursesString !== lastDetectedCourses) {
-      lastDetectedCourses = coursesString;
-      Storage.set({ [CONFIG.STORAGE_KEYS.DETECTED_COURSES]: uniqueCourses });
-    }
+    doDetectCourses();
   }, CONFIG.TIMEOUTS.DETECT_THROTTLE);
+}
+
+/**
+ * Ders bulunamazsa retry mekanizması.
+ * Belirli aralıklarla tekrar dener.
+ */
+function retryDetection() {
+  // Zaten ders bulunduysa veya max retry'a ulaşıldıysa dur
+  if (coursesFound || retryCount >= RETRY_CONFIG.MAX_RETRIES) {
+    return;
+  }
+
+  if (!Storage.isContextValid()) {
+    cleanup();
+    return;
+  }
+
+  // Extension kapalıysa dur
+  if (!extensionEnabled) {
+    return;
+  }
+
+  retryCount++;
+  
+  // Immediate modda tespit yap
+  var courses = doDetectCourses();
+  
+  if (courses.length > 0) {
+    // Ders bulundu, retry'ı durdur
+    coursesFound = true;
+    // Rename işlemini de uygula
+    loadAndApply();
+  } else if (retryCount < RETRY_CONFIG.MAX_RETRIES) {
+    // Hala bulunamadı, tekrar dene
+    retryTimeout = setTimeout(retryDetection, RETRY_CONFIG.RETRY_INTERVAL);
+  }
+}
+
+/**
+ * Retry mekanizmasını başlatır
+ */
+function startRetryMechanism() {
+  // Önceki retry'ı temizle
+  if (retryTimeout) {
+    clearTimeout(retryTimeout);
+  }
+  
+  retryCount = 0;
+  coursesFound = false;
+  
+  // İlk denemeyi hemen yap
+  var courses = doDetectCourses();
+  
+  if (courses.length > 0) {
+    coursesFound = true;
+  } else {
+    // Bulunamadı, retry başlat
+    retryTimeout = setTimeout(retryDetection, RETRY_CONFIG.RETRY_INTERVAL);
+  }
 }
 
 // ============================================
@@ -253,9 +337,9 @@ function loadAndApply() {
 // Cleanup (Extension Context Invalidation)
 // ============================================
 
-let observer = null;
-let mutationTimeout = null;
-let isCleanedUp = false;
+var observer = null;
+var mutationTimeout = null;
+var isCleanedUp = false;
 
 /**
  * Extension context geçersiz olduğunda tüm listener'ları temizler.
@@ -278,6 +362,11 @@ function cleanup() {
   if (mutationTimeout) {
     clearTimeout(mutationTimeout);
     mutationTimeout = null;
+  }
+  
+  if (retryTimeout) {
+    clearTimeout(retryTimeout);
+    retryTimeout = null;
   }
 }
 
@@ -303,7 +392,13 @@ function handleVisibilityChange() {
   if (isTabVisible && extensionEnabled) {
     // Tab görünür oldu ve extension açık, güncel veriyi uygula
     loadAndApply();
-    detectCourses();
+    
+    // Eğer henüz ders bulunmadıysa retry başlat
+    if (!coursesFound) {
+      startRetryMechanism();
+    } else {
+      detectCourses(true);  // Immediate mod
+    }
   }
 }
 
@@ -327,7 +422,9 @@ function initialize() {
   Storage.migrate(function() {
     // Normal başlatma işlemleri
     loadAndApply();
-    detectCourses();
+    
+    // Retry mekanizmasını başlat (immediate detection dahil)
+    startRetryMechanism();
   });
 }
 
@@ -348,9 +445,27 @@ document.addEventListener("DOMContentLoaded", function() {
     // Tab görünürse uygula
     if (isTabVisible) {
       loadAndApply();
+      
+      // DOMContentLoaded'da da retry başlat (henüz başlamadıysa)
+      if (!coursesFound && retryCount === 0) {
+        startRetryMechanism();
+      }
     }
   } catch (e) {
     ErrorHandler.handle("UNKNOWN", "content.DOMContentLoaded", e);
+  }
+});
+
+// Window load olduğunda son bir deneme daha (CATS geç yüklenebilir)
+window.addEventListener("load", function() {
+  try {
+    if (isTabVisible && extensionEnabled && !coursesFound) {
+      // Son bir retry turu daha başlat
+      retryCount = 0;
+      startRetryMechanism();
+    }
+  } catch (e) {
+    ErrorHandler.handle("UNKNOWN", "content.window.load", e);
   }
 });
 
@@ -370,24 +485,42 @@ try {
       return;
     }
 
-    if (mutations.some(function(mut) { return mut.addedNodes.length > 0; })) {
+    // addedNodes varsa işlem yap
+    var hasNewNodes = mutations.some(function(mut) { 
+      return mut.addedNodes.length > 0; 
+    });
+    
+    if (hasNewNodes) {
       // Direkt loadAndApply çağır (gecikme olmasın)
       loadAndApply();
       
-      // Throttled ders tespiti
-      if (!mutationTimeout) {
-        mutationTimeout = setTimeout(function() {
-          if (isTabVisible && extensionEnabled) {
-            detectCourses();
+      // Henüz ders bulunamadıysa immediate detection yap
+      if (!coursesFound) {
+        var courses = doDetectCourses();
+        if (courses.length > 0) {
+          coursesFound = true;
+          // Retry'ı durdur
+          if (retryTimeout) {
+            clearTimeout(retryTimeout);
+            retryTimeout = null;
           }
-          mutationTimeout = null;
-        }, CONFIG.TIMEOUTS.MUTATION_THROTTLE);
+        }
+      } else {
+        // Ders zaten bulundu, throttled detection
+        if (!mutationTimeout) {
+          mutationTimeout = setTimeout(function() {
+            if (isTabVisible && extensionEnabled) {
+              detectCourses(true);  // Immediate mod
+            }
+            mutationTimeout = null;
+          }, CONFIG.TIMEOUTS.MUTATION_THROTTLE);
+        }
       }
     }
   });
   
-  // Gözlem alanını optimize et - hedef element varsa onu izle
-  // Yoksa fallback olarak document.documentElement kullan
+  // Gözlem alanını belirle
+  // #topnav varsa onu izle, yoksa document.documentElement
   var observeTarget = document.querySelector(CONFIG.SELECTORS.OBSERVER_TARGET) || document.documentElement;
   
   observer.observe(observeTarget, { 

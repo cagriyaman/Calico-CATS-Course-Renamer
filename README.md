@@ -7,7 +7,7 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 [![Firefox Add-on](https://img.shields.io/badge/Firefox-140+-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-34A853?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.0.2-blue.svg)](CHANGELOG.md)
 
 **İstanbul Kültür Üniversitesi CATS (Course Activity Tracking System) portalında ders isimlerini kişiselleştirmenizi sağlayan tarayıcı uzantısı. Chrome, Edge, Opera, Yandex, Brave, Firefox (Desktop & Android) destekler.**
 
@@ -125,9 +125,8 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 
 | Platform | Durum | Link |
 |----------|-------|------|
-| Chrome Web Store | 🚧 Hazırlanıyor | - |
-| Firefox Add-ons (AMO) | 🚧 Hazırlanıyor | - |
-| Edge Add-ons | 🚧 Planlanıyor | - |
+| Chrome Web Store | https://chrome.google.com/webstore/detail/dlgfeimpmbgfjanafmjcnbpkpgfgklmc | - |
+| Firefox Add-ons (AMO) | https://addons.mozilla.org/tr/firefox/addon/calico-ders-yeniden-adland%C4%B1r/ | - |
 
 ---
 
@@ -184,7 +183,7 @@ Orijinal:  "BLG101 - Introduction to Programming - Fall 2024"
 | Google Chrome | 88+ | ✅ Tam Destek |
 | Microsoft Edge | 88+ | ✅ Tam Destek |
 | Brave | 1.20+ | ✅ Tam Destek |
-| Opera | 74+ | ⚠️ Test Edilmedi |
+| Opera | 74+ | ✅ Tam Destek |
 | Firefox Desktop | 140+ | ✅ Tam Destek |
 | Firefox Android | 142+ | ✅ Tam Destek |
 
@@ -271,7 +270,7 @@ calico/
 ├── 📄 emojis.js              # Emoji veritabanı
 ├── 🖼️ logo.png               # Popup header logosu
 │
-├── 📁images/                 # Extension ekran alıntıları
+├── 📁images/                 # Uzantı ekran alıntıları
 │   ├── calico_screenshot_1.png
 │
 ├── 📁 icons/                 # Uzantı ikonları

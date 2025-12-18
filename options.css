@@ -111,7 +111,19 @@ body {
 .header-toggle {
   flex-shrink: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 3px;
+}
+
+/* Toggle Text (Açık/Kapalı) - Toggle Altında */
+.toggle-text {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  order: 2;
 }
 
 .toggle-switch {
@@ -227,12 +239,12 @@ body.extension-disabled .course input {
 }
 
 .course-list::-webkit-scrollbar-thumb {
-  background: rgba(110, 79, 56, 0.4);
+  background: var(--primary);
   border-radius: 10px;
 }
 
 .course-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(110, 79, 56, 0.6);
+  background: #d97426;
 }
 
 /* Loading State */
@@ -347,6 +359,12 @@ body.extension-disabled .course input {
   box-shadow: 0 0 0 3px rgba(226, 175, 123, 0.2);
 }
 
+/* Kaydedilmiş input stili - turuncu renk */
+.course input.input-saved {
+  color: #e67e22;
+  font-weight: 500;
+}
+
 /* Character Counter */
 .char-counter {
   position: absolute;
@@ -394,6 +412,7 @@ body.extension-disabled .course input {
   cursor: pointer;
   transition: all 0.2s ease;
   color: #616161;
+  position: relative;
 }
 
 .icon-btn:hover {
@@ -412,6 +431,20 @@ body.extension-disabled .course input {
 
 .icon-btn.danger:hover {
   background: rgba(110, 79, 56, 0.2);
+}
+
+/* Emoji Buton + İkonu (SVG, İkon ile Aynı Kalınlık) */
+.icon-btn .plus-icon {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  color: #616161;
+}
+
+.icon-btn:hover .plus-icon {
+  color: #424242;
 }
 
 .icon {
@@ -627,7 +660,7 @@ body.extension-disabled .course input {
 }
 
 .emoji-categories::-webkit-scrollbar-thumb {
-  background: rgba(110, 79, 56, 0.4);
+  background: var(--primary);
   border-radius: 2px;
 }
 
@@ -681,8 +714,12 @@ body.extension-disabled .course input {
 }
 
 .emoji-grid::-webkit-scrollbar-thumb {
-  background: rgba(110, 79, 56, 0.4);
+  background: var(--primary);
   border-radius: 3px;
+}
+
+.emoji-grid::-webkit-scrollbar-thumb:hover {
+  background: #d97426;
 }
 
 .emoji-item {
@@ -895,4 +932,10 @@ body.extension-disabled .course input {
   font-size: 10px;
   color: #aaa;
   font-family: monospace;
+}
+
+/* Firefox Scrollbar Desteği */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) rgba(0, 0, 0, 0.05);
 }
