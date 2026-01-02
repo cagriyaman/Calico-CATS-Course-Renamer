@@ -1,6 +1,11 @@
 /**
  * Calico - Content Script
  * CATS portalında ders isimlerini yeniden adlandırır.
+ * 
+ * Bağımlılıklar: config.js, storage.js (ErrorHandler dahil)
+ * Not: manifest'te önce yüklenmeli
+ * 
+ * v1.0.1: Retry mekanizması eklendi (ders bulunamazsa 10 kez dener)
  */
 
 /**
@@ -136,6 +141,43 @@ var RETRY_CONFIG = {
 };
 
 /**
+ * Tespit edilen derslerde olmayan courseMap eşleştirmelerini temizler.
+ * Kullanıcı bir dersi unfavorite yaptığında, o dersin özel adı otomatik silinir.
+ * @param {string[]} detectedCourses - Tespit edilen ders listesi
+ */
+function cleanOrphanMappings(detectedCourses) {
+  // Hiç ders tespit edilmediyse temizleme yapma (sayfa henüz yüklenmemiş olabilir)
+  if (!detectedCourses || detectedCourses.length === 0) {
+    return;
+  }
+  
+  if (!Storage.isContextValid()) {
+    return;
+  }
+  
+  Storage.get([CONFIG.STORAGE_KEYS.COURSE_MAP], function(data) {
+    var courseMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+    var keysToDelete = [];
+    
+    for (var originalName in courseMap) {
+      if (courseMap.hasOwnProperty(originalName)) {
+        if (detectedCourses.indexOf(originalName) === -1) {
+          keysToDelete.push(originalName);
+        }
+      }
+    }
+    
+    if (keysToDelete.length > 0) {
+      keysToDelete.forEach(function(key) {
+        delete courseMap[key];
+      });
+      
+      Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: courseMap });
+    }
+  });
+}
+
+/**
  * Sayfadaki dersleri tespit eder (iç fonksiyon).
  * @returns {string[]} Tespit edilen dersler
  */
@@ -179,6 +221,9 @@ function doDetectCourses() {
   if (coursesString !== lastDetectedCourses) {
     lastDetectedCourses = coursesString;
     Storage.set({ [CONFIG.STORAGE_KEYS.DETECTED_COURSES]: uniqueCourses });
+    
+    // Orphan eşleştirmeleri temizle
+    cleanOrphanMappings(uniqueCourses);
   }
   
   return uniqueCourses;

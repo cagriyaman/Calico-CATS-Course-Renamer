@@ -1,7 +1,7 @@
 # 🔒 Gizlilik Politikası | Privacy Policy
 
-> **Son Güncelleme | Last Updated:** 2025-12-17  
-> **Sürüm | Version:** 1.0.2
+> **Son Güncelleme | Last Updated:** 2026-01-02  
+> **Sürüm | Version:** 1.0.3
 
 ---
 

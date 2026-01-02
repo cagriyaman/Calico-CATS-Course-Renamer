@@ -7,6 +7,27 @@ ve [Semantic Versioning](https://semver.org/spec/v2.0.0.html) kullanır.
 
 ---
 
+## [1.0.3] - 2024-12-17
+
+### 🧹 Otomatik Orphan Temizleme
+
+---
+
+### ✨ Eklenen
+
+- **Orphan Mapping Temizleme:** Favorilerden kaldırılan derslerin özel adları otomatik siliniyor
+  - Ders unfavorite edildiğinde courseMap'ten otomatik temizlenir
+  - otherSitesMenu'de orijinal isim geri döner
+  - Manuel müdahale gerektirmez
+
+---
+
+### 🐛 Düzeltilen
+
+- **Boş Array Koruması:** Sayfa yüklenirken ders listesi boşken tüm eşleştirmelerin silinmesi engellendi
+
+---
+
 ## [1.0.2] - 2024-12-17
 
 ### 🎨 UI/UX İyileştirmeleri & Hata Düzeltmeleri
@@ -247,7 +268,7 @@ calico/
 │   └── icon128.png
 ├── README.md              # Kullanıcı ve geliştirici dokümantasyonu
 ├── CHANGELOG.md           # Bu dosya
-├── ROADMAP.md             # Gelecek sürüm planları
+├── PRIVACY.md             # Gizlilik politikası
 └── LICENSE                # MIT Lisansı
 ```
 
@@ -313,12 +334,6 @@ Gelecek sürümlerde planlananlar için [ROADMAP.md](ROADMAP.md) dosyasına bak�
 - Promise/async-await geçişi
 - Kod tabanı refactoring
 
-### 🔮 Planlanıyor (v2.1.0+)
-- Ders renklendirme özelliği
-- Import/Export ayarlar
-- Karanlık mod desteği
-- Çoklu dil desteği (i18n)
-
 ---
 
 ## 🙏 Teşekkürler
@@ -334,6 +349,7 @@ Gelecek sürümlerde planlananlar için [ROADMAP.md](ROADMAP.md) dosyasına bak�
 
 | Sürüm | Tarih | Öne Çıkan |
 |-------|-------|-----------|
+| [1.0.3](#103---2024-12-17) | 2024-12-17 | 🧹 Otomatik Orphan Temizleme |
 | [1.0.2](#102---2024-12-17) | 2024-12-17 | 🎨 UI/UX İyileştirmeleri & Hata Düzeltmeleri |
 | [1.0.1](#101---2024-12-05) | 2024-12-05 | 🦊 Firefox & Cross-Browser Desteği |
 | [1.0.0](#100---2024-12-04) | 2024-12-04 | 🎉 İlk Sürüm (Chrome) |
