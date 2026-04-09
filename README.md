@@ -7,7 +7,7 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 [![Firefox Add-on](https://img.shields.io/badge/Firefox-140+-FF7139?logo=firefox&logoColor=white)](https://addons.mozilla.org/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-34A853?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.2.0-blue.svg)](CHANGELOG.md)
 
 **İstanbul Kültür Üniversitesi CATS (Course Activity Tracking System) portalında ders isimlerini kişiselleştirmenizi sağlayan tarayıcı uzantısı. Chrome, Edge, Opera, Yandex, Brave, Firefox (Desktop & Android) destekler.**
 
@@ -43,6 +43,16 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 | **Orijinale Dönüş** | Tek tıkla özel isimleri temizleyin, orijinal isme dönün |
 | **Açma/Kapama Toggle** | Uzantıyı geçici olarak devre dışı bırakın |
 
+### 🛡️ Yedekleme & Aktarım (v1.2.0)
+
+| Özellik | Açıklama |
+|---------|----------|
+| **Preset Slotlar** | 3 kayıt slotuna ders adlarınızı isimlendirerek yedekleyin, tek tıkla geri yükleyin |
+| **Otomatik Yedek** | "Tümünü Sil", preset yükleme veya import öncesi mevcut durum otomatik yedeklenir |
+| **.calico Dışa Aktar** | Ders adlarını `.calico` dosyası olarak indirin |
+| **.calico İçe Aktar** | Dosyayı yükleyerek farklı tarayıcıya veya cihaza taşıyın |
+| **Akıllı Geri Yükleme** | Ders adları kaybolduğunda ana ekranda "Geri Yükle" butonu otomatik belirir |
+
 ### 🔧 Teknik Özellikler
 
 - ✅ **Tarayıcı Sync:** Ayarlarınız tarayıcı hesabınızla senkronize edilir
@@ -51,6 +61,7 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 - ✅ **Performans Optimizasyonu:** Tab gizliyken işlem yapmaz
 - ✅ **Hata Toleransı:** Sayfa yapısı değişse bile çalışmaya devam eder
 - ✅ **Güvenli:** Sadece CATS portalında çalışır, veri dışarı göndermez
+- ✅ **Debug Loglama:** Sorun teşhisi için kapsamlı olay kaydı (varsayılan açık, storage.local)
 
 ---
 
@@ -172,6 +183,20 @@ Orijinal:  "BLG101 - Introduction to Programming - Fall 2024"
 - Kapalıyken orijinal ders isimleri gösterilir
 - Ayarlarınız korunur, tekrar açtığınızda geri gelir
 
+#### 💾 Preset Slotlar (Ayarlar Sekmesi)
+- 3 kayıt slotuna ders adlarınızı isimlendirerek yedekleyin
+- Kaydedilmiş preset'i tek tıkla geri yükleyin
+- Yükleme öncesi mevcut durum otomatik yedeklenir
+
+#### 📂 .calico Dışa / İçe Aktar (Ayarlar Sekmesi)
+- ".calico İndir" ile ders adlarınızı dosya olarak kaydedin
+- ".calico Yükle" ile farklı tarayıcıya veya cihaza aktarın
+- Firefox'ta otomatik olarak bağımsız import penceresi açılır
+
+#### 🛡️ Otomatik Yedekleme
+- "Tümünü Sil", preset yükleme, import işlemlerinden önce otomatik yedek alınır
+- Ders adları kaybolduğunda ana ekranda "Geri Yükle" butonu otomatik belirir
+
 ---
 
 ## ⚙️ Teknik Detaylar
@@ -190,53 +215,73 @@ Orijinal:  "BLG101 - Introduction to Programming - Fall 2024"
 ### Mimari
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Browser Extension                         │
-│              (Chrome / Firefox / Edge)                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │  Options UI  │    │   Storage    │    │Content Script│   │
-│  │  (Popup)     │◄──►│   (Sync)     │◄──►│  (CATS DOM)  │   │
-│  └──────────────┘    └──────────────┘    └──────────────┘   │
-│         │                   │                    │           │
-│         ▼                   ▼                    ▼           │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │  options.js  │    │  storage.js  │    │  content.js  │   │
-│  │  options.css │    │  config.js   │    │              │   │
-│  │  options.html│    │              │    │              │   │
-│  │  emojis.js   │    │              │    │              │   │
-│  └──────────────┘    └──────────────┘    └──────────────┘   │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                      Browser Extension                            │
+│                (Chrome / Firefox / Edge)                           │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐     │
+│  │  Options UI  │    │     Storage      │    │Content Script│     │
+│  │  (Popup)     │◄──►│  Sync + Local    │◄──►│  (CATS DOM)  │     │
+│  │  Dersler |   │    │                  │    │              │     │
+│  │  Ayarlar     │    │  courseMap (sync) │    │              │     │
+│  └──────┬───────┘    │  presets (local)  │    └──────────────┘     │
+│         │            │  logs (local)     │                         │
+│         │            │  autoBackup(local)│                         │
+│  ┌──────┴───────┐    └──────────────────┘                         │
+│  │  Import Page │                                                  │
+│  │  (Firefox)   │    (.calico dosya import penceresi)              │
+│  └──────────────┘                                                  │
+│                                                                    │
+│  Dosyalar:                                                         │
+│  options.js / options.css / options.html / emojis.js               │
+│  import.js / import.html                                           │
+│  storage.js / config.js / content.js / browser-polyfill.js        │
+│                                                                    │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Storage Şeması
 
 ```javascript
-// storage.sync (Chrome & Firefox senkronize storage)
+// storage.sync (tarayıcı hesabıyla senkronize — 100 KB limit)
 {
-  // Ders isim eşleştirmeleri
   "courseMap": {
     "BLG101 - Introduction to Programming": "💻 Programlama",
     "MAT101 - Calculus I": "📐 Matematik"
   },
-  
-  // Tespit edilen dersler
   "detectedCourses": [
     "BLG101 - Introduction to Programming",
     "MAT101 - Calculus I"
   ],
-  
-  // Uzantı açık/kapalı durumu
   "extensionEnabled": true,
-  
-  // Storage versiyon (migration için)
   "storageVersion": 1
+}
+
+// storage.local (yalnızca cihazda — 5 MB limit)
+{
+  // Debug logları
+  "logEntries": [
+    { "t": 1712500000000, "c": "ST_W", "m": "courseMap kaydedildi", "d": {...} }
+  ],
+  "loggerEnabled": true,
+
+  // Preset slotlar (3 slot, null = boş)
+  "presets": [
+    { "name": "1. Dönem", "courseMap": {...}, "createdAt": "..." },
+    null,
+    null
+  ],
+
+  // Otomatik yedek (yıkıcı işlem öncesi kaydedilir)
+  "autoBackup": {
+    "courseMap": {...},
+    "savedAt": "..."
+  }
 }
 ```
 
-> **Not:** Veriler, Chrome'da Google hesabınızla, Firefox'ta Firefox Sync ile senkronize edilir.
+> **Not:** `storage.sync` verileri Chrome'da Google hesabınızla, Firefox'ta Firefox Sync ile senkronize edilir. `storage.local` verileri yalnızca cihazda kalır.
 
 ### Selector Stratejisi
 
@@ -262,11 +307,13 @@ calico/
 ├── 📄 manifest.json          # Chrome + Firefox birleşik manifest (V3)
 ├── 📄 browser-polyfill.js    # Chrome/Firefox API uyumluluk katmanı
 ├── 📄 config.js              # Merkezi konfigürasyon
-├── 📄 storage.js             # Storage API wrapper (cross-browser)
+├── 📄 storage.js             # Storage API wrapper + Logger + PresetStorage
 ├── 📄 content.js             # CATS sayfasında çalışan script
-├── 📄 options.html           # Popup HTML yapısı
+├── 📄 options.html           # Popup HTML yapısı (Dersler | Ayarlar)
 ├── 📄 options.css            # Popup stilleri
 ├── 📄 options.js             # Popup JavaScript mantığı
+├── 📄 import.html            # Firefox import penceresi HTML
+├── 📄 import.js              # Firefox import penceresi mantığı
 ├── 📄 emojis.js              # Emoji veritabanı
 ├── 🖼️ logo.png               # Popup header logosu
 │
@@ -292,12 +339,14 @@ calico/
 |-------|-------|----------|
 | `manifest.json` | ~1.3KB | Extension metadata, izinler (Chrome + Firefox) |
 | `browser-polyfill.js` | ~8KB | Chrome/Firefox API uyumluluk katmanı |
-| `config.js` | ~3KB | Selector'lar, timeout'lar, storage key'leri |
-| `storage.js` | ~20KB | Storage CRUD, migration, error handling |
-| `content.js` | ~11KB | DOM manipulation, MutationObserver |
-| `options.js` | ~21KB | UI logic, event handling |
-| `options.css` | ~16KB | Calico teması, responsive tasarım |
-| `options.html` | ~8KB | Popup HTML yapısı |
+| `config.js` | ~4KB | Selector'lar, timeout'lar, logger/preset/file sabitleri |
+| `storage.js` | ~38KB | Storage CRUD, Logger, PresetStorage, ErrorHandler |
+| `content.js` | ~13KB | DOM manipulation, MutationObserver, orphan guard |
+| `options.js` | ~45KB | UI logic, tab nav, presets, export/import, auto-backup |
+| `options.css` | ~20KB | Calico teması, tab/preset/backup stilleri |
+| `options.html` | ~10KB | Popup HTML (Dersler + Ayarlar sekmeleri) |
+| `import.html` | ~3KB | Firefox bağımsız import penceresi |
+| `import.js` | ~5KB | Import validation, dosya işleme, drag & drop |
 | `emojis.js` | ~11KB | 120+ kategorize emoji (7 kategori) |
 
 ---
@@ -330,31 +379,15 @@ Tüm ayarlar `config.js` dosyasında merkezi olarak yönetilir:
 
 ```javascript
 const CONFIG = {
-  // Storage key'leri
-  STORAGE_KEYS: {
-    COURSE_MAP: "courseMap",
-    DETECTED_COURSES: "detectedCourses",
-    EXTENSION_ENABLED: "extensionEnabled"
-  },
-  
-  // DOM Selector'ları
-  SELECTORS: {
-    COURSE_NAMES: [...],
-    COURSE_NAMES_FALLBACK: [...],
-    OBSERVER_TARGET: "#topnav"
-  },
-  
-  // Zamanlama
-  TIMEOUTS: {
-    DETECT_THROTTLE: 2000,
-    MUTATION_THROTTLE: 1000
-  },
-  
-  // Input limitleri
-  INPUT: {
-    MAX_COURSE_NAME_LENGTH: 100,
-    FORBIDDEN_CHARS: ['<', '>', '"', "'", '`', '\\']
-  }
+  STORAGE_KEYS: { COURSE_MAP, DETECTED_COURSES, EXTENSION_ENABLED },
+  SELECTORS: { COURSE_NAMES, COURSE_NAMES_FALLBACK, OBSERVER_TARGET },
+  TIMEOUTS: { DETECT_THROTTLE: 2000, MUTATION_THROTTLE: 1000 },
+  INPUT: { MAX_COURSE_NAME_LENGTH: 100, FORBIDDEN_CHARS: [...] },
+
+  // v1.2.0
+  LOGGER: { MAX_ENTRIES: 500, PERSIST_INTERVAL: 5000, CRITICAL_CATEGORIES: [...] },
+  PRESET: { MAX_SLOTS: 3, STORAGE_KEY: "presets", AUTO_BACKUP_KEY: "autoBackup" },
+  FILE: { EXTENSION: ".calico", VERSION: "1.0", MAX_IMPORT_SIZE: 524288 }
 };
 ```
 
@@ -484,8 +517,8 @@ Bu uzantı kullanıcı gizliliğine büyük önem verir. Detaylı bilgi için [P
 | Açık kaynak | ✅ MIT Lisansı |
 
 **Verileriniz nerede saklanır?**
-- Tüm veriler tarayıcınızın yerel Storage API'sinde saklanır
-- Chrome'da Google hesabınızla, Firefox'ta Firefox Sync ile senkronize edilebilir
+- Ders adları `storage.sync` ile tarayıcı hesabınızda senkronize edilir
+- Loglar, preset'ler ve yedekler `storage.local` ile yalnızca cihazda kalır
 - Hiçbir veri harici sunuculara gönderilmez
 
 ---

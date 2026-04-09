@@ -253,9 +253,15 @@ const Storage = {
             var lastError = _getLastError();
             if (lastError) {
               ErrorHandler.handle("STORAGE_READ", "Storage.get", lastError, { keys: keys });
+              Logger.log('ERR', 'Storage okuma hatası', { keys: keys, error: lastError.message || String(lastError) });
               if (onError) onError(lastError);
               return;
             }
+            Logger.log('ST_R', 'Storage okuma', {
+              keys: keys,
+              resultKeys: Object.keys(data || {}),
+              hasData: Object.keys(data || {}).length > 0
+            });
             callback(data || {});
           } catch (e) {
             ErrorHandler.handle("STORAGE_READ", "Storage.get.callback", e);
@@ -290,6 +296,15 @@ const Storage = {
       
       // browserAPI polyfill kullan
       if (_browserAPI && _browserAPI.storage && _browserAPI.storage.sync) {
+        Logger.log('ST_W', 'Storage yazma', {
+          keys: Object.keys(data),
+          courseMapKeys: data[CONFIG.STORAGE_KEYS.COURSE_MAP]
+            ? Object.keys(data[CONFIG.STORAGE_KEYS.COURSE_MAP])
+            : undefined,
+          courseMapCount: data[CONFIG.STORAGE_KEYS.COURSE_MAP]
+            ? Object.keys(data[CONFIG.STORAGE_KEYS.COURSE_MAP]).length
+            : undefined
+        });
         _browserAPI.storage.sync.set(data, function() {
           try {
             var lastError = _getLastError();
@@ -298,6 +313,7 @@ const Storage = {
               var errorMsg = lastError.message || "";
               var errorType = errorMsg.includes("QUOTA") ? "STORAGE_QUOTA" : "STORAGE_WRITE";
               ErrorHandler.handle(errorType, "Storage.set", lastError);
+              Logger.log('ERR', 'Storage yazma hatası', { keys: Object.keys(data), error: errorMsg });
               if (onError) onError(lastError);
               return;
             }
@@ -334,11 +350,13 @@ const Storage = {
       
       // browserAPI polyfill kullan
       if (_browserAPI && _browserAPI.storage && _browserAPI.storage.sync) {
+        Logger.log('ST_D', 'Storage silme', { keys: keys });
         _browserAPI.storage.sync.remove(keys, function() {
           try {
             var lastError = _getLastError();
             if (lastError) {
               ErrorHandler.handle("STORAGE_WRITE", "Storage.remove", lastError, { keys: keys });
+              Logger.log('ERR', 'Storage silme hatası', { keys: keys, error: (lastError.message || String(lastError)) });
               if (onError) onError(lastError);
               return;
             }
@@ -378,8 +396,34 @@ const Storage = {
           if (!Storage.isContextValid()) {
             return;
           }
-          
+
           try {
+            // Detaylı değişiklik logu
+            var changeDetails = {};
+            for (var key in changes) {
+              if (changes.hasOwnProperty(key)) {
+                var change = changes[key];
+                changeDetails[key] = {
+                  hasOld: change.oldValue !== undefined,
+                  hasNew: change.newValue !== undefined
+                };
+                // courseMap değişikliklerinde detaylı diff
+                if (key === CONFIG.STORAGE_KEYS.COURSE_MAP) {
+                  var oldKeys = change.oldValue ? Object.keys(change.oldValue) : [];
+                  var newKeys = change.newValue ? Object.keys(change.newValue) : [];
+                  var added = newKeys.filter(function(k) { return oldKeys.indexOf(k) === -1; });
+                  var removed = oldKeys.filter(function(k) { return newKeys.indexOf(k) === -1; });
+                  changeDetails[key].diff = {
+                    oldCount: oldKeys.length,
+                    newCount: newKeys.length,
+                    added: added,
+                    removed: removed
+                  };
+                }
+              }
+            }
+            Logger.log('ST_W', 'Storage onChanged', { area: areaName, changes: changeDetails });
+
             callback(changes, areaName);
           } catch (e) {
             ErrorHandler.handle("UNKNOWN", "Storage.onChanged.callback", e);
@@ -647,6 +691,642 @@ const Storage = {
   }
 };
 
-// Storage objesini değiştirilemez yap
+// ============================================
+// Debug Logger
+// ============================================
+
+/**
+ * Debug Logger Modülü
+ * Storage değişikliklerini, DOM olaylarını ve hataları takip eder.
+ * storage.local kullanır (5MB limit, sync quota'sını yemez).
+ * Varsayılan olarak açıktır.
+ * Kritik kategoriler anında persist edilir.
+ */
+var Logger = (function() {
+  // CONFIG'ten sabitleri al
+  var MAX_ENTRIES = CONFIG.LOGGER.MAX_ENTRIES;
+  var PERSIST_INTERVAL = CONFIG.LOGGER.PERSIST_INTERVAL;
+  var STORAGE_KEY_ENABLED = CONFIG.LOGGER.STORAGE_KEY_ENABLED;
+  var STORAGE_KEY_ENTRIES = CONFIG.LOGGER.STORAGE_KEY_ENTRIES;
+  var DATA_MAX_LENGTH = CONFIG.LOGGER.DATA_MAX_LENGTH;
+  var CRITICAL_CATEGORIES = CONFIG.LOGGER.CRITICAL_CATEGORIES;
+
+  // Durum - varsayılan olarak açık
+  var _enabled = true;
+  var _buffer = [];
+  var _persistTimer = null;
+  var _initialized = false;
+  var _persistPending = false;
+
+  /**
+   * storage.local referansını döndürür
+   * @returns {Object|null} storage.local API
+   */
+  function _getLocalStorage() {
+    if (_browserAPI && _browserAPI.storage && _browserAPI.storage.local) {
+      return _browserAPI.storage.local;
+    }
+    return null;
+  }
+
+  /**
+   * Logger'ı başlatır, storage.local'dan mevcut durumu yükler.
+   * İlk kurulumda eski sync verilerini migrate eder.
+   * @param {Function} callback - Başlatma tamamlandığında çağrılır
+   */
+  function init(callback) {
+    if (!Storage.isContextValid()) {
+      _initialized = true;
+      if (callback) callback();
+      return;
+    }
+
+    var local = _getLocalStorage();
+    if (!local) {
+      _initialized = true;
+      if (callback) callback();
+      return;
+    }
+
+    try {
+      // storage.local'dan oku
+      local.get([STORAGE_KEY_ENABLED, STORAGE_KEY_ENTRIES], function(data) {
+        var lastError = _getLastError();
+        if (lastError) {
+          _initialized = true;
+          if (callback) callback();
+          return;
+        }
+
+        // Enabled: undefined ise varsayılan true
+        _enabled = data[STORAGE_KEY_ENABLED] !== undefined ? data[STORAGE_KEY_ENABLED] : true;
+        _buffer = data[STORAGE_KEY_ENTRIES] || [];
+
+        // One-time migration: local boşsa sync'ten eski veriyi al
+        if (_buffer.length === 0 && _browserAPI.storage.sync) {
+          _browserAPI.storage.sync.get([STORAGE_KEY_ENABLED, STORAGE_KEY_ENTRIES], function(syncData) {
+            var syncError = _getLastError();
+            if (!syncError && syncData[STORAGE_KEY_ENTRIES] && syncData[STORAGE_KEY_ENTRIES].length > 0) {
+              _buffer = syncData[STORAGE_KEY_ENTRIES];
+              // Sync'teki eski log verilerini temizle
+              _browserAPI.storage.sync.remove([STORAGE_KEY_ENABLED, STORAGE_KEY_ENTRIES]);
+              persist();
+            }
+            _initialized = true;
+            if (callback) callback();
+          });
+        } else {
+          _initialized = true;
+          if (callback) callback();
+        }
+      });
+    } catch (e) {
+      _initialized = true;
+      if (callback) callback();
+    }
+  }
+
+  /**
+   * Log kaydı ekler
+   * @param {string} category - Log kategorisi (INIT, ST_R, ST_W, ST_D, DOM_D, DOM_A, ORPH, USER, ERR, WARN)
+   * @param {string} message - Log mesajı
+   * @param {Object} data - Ek veri (opsiyonel)
+   */
+  function log(category, message, data) {
+    if (!_enabled || !_initialized) return;
+
+    var entry = {
+      t: Date.now(),
+      c: category,
+      m: message
+    };
+
+    if (data !== undefined && data !== null) {
+      try {
+        var dataStr = JSON.stringify(data);
+        if (dataStr.length <= DATA_MAX_LENGTH) {
+          entry.d = data;
+        } else {
+          entry.d = { _truncated: true, _size: dataStr.length };
+        }
+      } catch (e) {
+        entry.d = { _error: "serialize failed" };
+      }
+    }
+
+    _buffer.push(entry);
+
+    // Circular buffer
+    if (_buffer.length > MAX_ENTRIES) {
+      _buffer = _buffer.slice(-MAX_ENTRIES);
+    }
+
+    // Kritik kategoriler anında persist edilir (debounce atlanır)
+    if (CRITICAL_CATEGORIES.indexOf(category) !== -1) {
+      persist();
+    } else {
+      schedulePersist();
+    }
+  }
+
+  /**
+   * Storage'a yazımı zamanlar (debounce)
+   */
+  function schedulePersist() {
+    if (_persistTimer || _persistPending) return;
+
+    _persistTimer = setTimeout(function() {
+      _persistTimer = null;
+      persist();
+    }, PERSIST_INTERVAL);
+  }
+
+  /**
+   * Buffer'ı storage.local'a yazar
+   * @param {Function} callback - Yazım tamamlandığında çağrılır
+   */
+  function persist(callback) {
+    if (!_initialized || _persistPending) {
+      if (callback) callback();
+      return;
+    }
+
+    if (!Storage.isContextValid()) {
+      if (callback) callback();
+      return;
+    }
+
+    var local = _getLocalStorage();
+    if (!local) {
+      if (callback) callback();
+      return;
+    }
+
+    _persistPending = true;
+
+    try {
+      var saveData = {};
+      saveData[STORAGE_KEY_ENTRIES] = _buffer;
+
+      local.set(saveData, function() {
+        _persistPending = false;
+        if (callback) callback();
+      });
+    } catch (e) {
+      _persistPending = false;
+      if (callback) callback();
+    }
+  }
+
+  /**
+   * Logger'ı açar
+   * @param {Function} callback - İşlem tamamlandığında çağrılır
+   */
+  function enable(callback) {
+    if (!Storage.isContextValid()) {
+      if (callback) callback(false);
+      return;
+    }
+
+    _enabled = true;
+
+    var local = _getLocalStorage();
+    if (!local) {
+      if (callback) callback(false);
+      return;
+    }
+
+    try {
+      var saveData = {};
+      saveData[STORAGE_KEY_ENABLED] = true;
+
+      local.set(saveData, function() {
+        var lastError = _getLastError();
+        if (lastError) {
+          if (callback) callback(false);
+          return;
+        }
+
+        log('INIT', 'Logger aktif edildi');
+        if (callback) callback(true);
+      });
+    } catch (e) {
+      if (callback) callback(false);
+    }
+  }
+
+  /**
+   * Logger'ı kapatır
+   * @param {Function} callback - İşlem tamamlandığında çağrılır
+   */
+  function disable(callback) {
+    if (!Storage.isContextValid()) {
+      _enabled = false;
+      if (callback) callback(false);
+      return;
+    }
+
+    log('INIT', 'Logger devre dışı bırakıldı');
+
+    // Önce son logu kaydet
+    persist(function() {
+      _enabled = false;
+
+      var local = _getLocalStorage();
+      if (!local) {
+        if (callback) callback(false);
+        return;
+      }
+
+      try {
+        var saveData = {};
+        saveData[STORAGE_KEY_ENABLED] = false;
+
+        local.set(saveData, function() {
+          var lastError = _getLastError();
+          if (callback) callback(!lastError);
+        });
+      } catch (e) {
+        if (callback) callback(false);
+      }
+    });
+  }
+
+  /**
+   * Tüm logları döndürür (kopya)
+   * @returns {Array} Log dizisi
+   */
+  function getLogs() {
+    return _buffer.slice();
+  }
+
+  /**
+   * Log sayısını döndürür
+   * @returns {number} Log sayısı
+   */
+  function getLogCount() {
+    return _buffer.length;
+  }
+
+  /**
+   * Logları temizler
+   * @param {Function} callback - İşlem tamamlandığında çağrılır
+   */
+  function clearLogs(callback) {
+    _buffer = [];
+
+    if (!Storage.isContextValid()) {
+      if (callback) callback(false);
+      return;
+    }
+
+    var local = _getLocalStorage();
+    if (!local) {
+      if (callback) callback(false);
+      return;
+    }
+
+    try {
+      var saveData = {};
+      saveData[STORAGE_KEY_ENTRIES] = [];
+
+      local.set(saveData, function() {
+        var lastError = _getLastError();
+        if (callback) callback(!lastError);
+      });
+    } catch (e) {
+      if (callback) callback(false);
+    }
+  }
+
+  /**
+   * Logları JSON formatında export eder
+   * @returns {Object} Export objesi
+   */
+  function exportLogs() {
+    var oldest = _buffer.length > 0 ? _buffer[0].t : null;
+    var newest = _buffer.length > 0 ? _buffer[_buffer.length - 1].t : null;
+
+    return {
+      calico: '1.0',
+      type: 'debug-logs',
+      exportedAt: new Date().toISOString(),
+      entries: _buffer,
+      summary: {
+        total: _buffer.length,
+        oldest: oldest ? new Date(oldest).toISOString() : null,
+        newest: newest ? new Date(newest).toISOString() : null
+      }
+    };
+  }
+
+  /**
+   * Logger durumunu döndürür
+   * @returns {boolean} Logger açık mı
+   */
+  function isEnabled() {
+    return _enabled;
+  }
+
+  /**
+   * Logger başlatıldı mı kontrol eder
+   * @returns {boolean} Başlatıldı mı
+   */
+  function isInitialized() {
+    return _initialized;
+  }
+
+  /**
+   * Log istatistiklerini döndürür
+   * @returns {Object} İstatistikler
+   */
+  function getStats() {
+    if (_buffer.length === 0) {
+      return {
+        total: 0,
+        oldest: null,
+        newest: null,
+        byCategory: {}
+      };
+    }
+
+    var byCategory = {};
+    for (var i = 0; i < _buffer.length; i++) {
+      var cat = _buffer[i].c;
+      byCategory[cat] = (byCategory[cat] || 0) + 1;
+    }
+
+    return {
+      total: _buffer.length,
+      oldest: new Date(_buffer[0].t).toISOString(),
+      newest: new Date(_buffer[_buffer.length - 1].t).toISOString(),
+      byCategory: byCategory
+    };
+  }
+
+  /**
+   * Timestamp'i okunabilir formata çevirir (milisaniye dahil)
+   * @param {number} timestamp - Unix timestamp (ms)
+   * @returns {string} Formatlanmış tarih/saat (HH:MM:SS.mmm)
+   */
+  function formatTimestamp(timestamp) {
+    var d = new Date(timestamp);
+    var hours = String(d.getHours()).padStart(2, '0');
+    var mins = String(d.getMinutes()).padStart(2, '0');
+    var secs = String(d.getSeconds()).padStart(2, '0');
+    var ms = String(d.getMilliseconds()).padStart(3, '0');
+    return hours + ':' + mins + ':' + secs + '.' + ms;
+  }
+
+  /**
+   * Tarih formatı (gün dahil)
+   * @param {number} timestamp - Unix timestamp (ms)
+   * @returns {string} Formatlanmış tarih
+   */
+  function formatDate(timestamp) {
+    var d = new Date(timestamp);
+    var day = String(d.getDate()).padStart(2, '0');
+    var month = String(d.getMonth() + 1).padStart(2, '0');
+    var year = d.getFullYear();
+    return day + '.' + month + '.' + year;
+  }
+
+  return {
+    init: init,
+    log: log,
+    enable: enable,
+    disable: disable,
+    getLogs: getLogs,
+    getLogCount: getLogCount,
+    clearLogs: clearLogs,
+    exportLogs: exportLogs,
+    isEnabled: isEnabled,
+    isInitialized: isInitialized,
+    getStats: getStats,
+    persist: persist,
+    formatTimestamp: formatTimestamp,
+    formatDate: formatDate
+  };
+})();
+
+// ============================================
+// Preset Storage (storage.local)
+// ============================================
+
+/**
+ * Preset Storage Modülü
+ * Ders adı preset'lerini ve otomatik yedekleri yönetir.
+ * storage.local kullanır (sync quota'sını etkilemez).
+ */
+var PresetStorage = (function() {
+  var STORAGE_KEY = CONFIG.PRESET.STORAGE_KEY;
+  var AUTO_BACKUP_KEY = CONFIG.PRESET.AUTO_BACKUP_KEY;
+  var MAX_SLOTS = CONFIG.PRESET.MAX_SLOTS;
+
+  /**
+   * storage.local referansını döndürür
+   * @returns {Object|null}
+   */
+  function _getLocalStorage() {
+    if (_browserAPI && _browserAPI.storage && _browserAPI.storage.local) {
+      return _browserAPI.storage.local;
+    }
+    return null;
+  }
+
+  /**
+   * Preset dizisini doğru uzunluğa getirir (null ile doldurur)
+   * @param {Array} presets - Mevcut preset dizisi
+   * @returns {Array} MAX_SLOTS uzunluğunda dizi
+   */
+  function _padPresets(presets) {
+    var result = presets || [];
+    while (result.length < MAX_SLOTS) {
+      result.push(null);
+    }
+    return result.slice(0, MAX_SLOTS);
+  }
+
+  /**
+   * Tüm preset slot'larını okur
+   * @param {Function} callback - callback(presetsArray) - her eleman preset objesi veya null
+   */
+  function getAll(callback) {
+    var local = _getLocalStorage();
+    if (!local) {
+      callback(_padPresets([]));
+      return;
+    }
+
+    try {
+      local.get([STORAGE_KEY], function(data) {
+        var lastError = _getLastError();
+        if (lastError) {
+          callback(_padPresets([]));
+          return;
+        }
+        callback(_padPresets(data[STORAGE_KEY] || []));
+      });
+    } catch (e) {
+      callback(_padPresets([]));
+    }
+  }
+
+  /**
+   * Belirtilen slot'a courseMap kaydeder
+   * @param {number} slotIndex - 0, 1 veya 2
+   * @param {string} name - Preset adı
+   * @param {Object} courseMap - Kaydedilecek courseMap
+   * @param {Function} callback - callback(success)
+   */
+  function saveToSlot(slotIndex, name, courseMap, callback) {
+    if (slotIndex < 0 || slotIndex >= MAX_SLOTS) {
+      if (callback) callback(false);
+      return;
+    }
+
+    var local = _getLocalStorage();
+    if (!local) {
+      if (callback) callback(false);
+      return;
+    }
+
+    getAll(function(presets) {
+      presets[slotIndex] = {
+        name: (name || "").trim().substring(0, CONFIG.PRESET.MAX_NAME_LENGTH),
+        courseMap: courseMap,
+        createdAt: new Date().toISOString()
+      };
+
+      var saveData = {};
+      saveData[STORAGE_KEY] = presets;
+
+      try {
+        local.set(saveData, function() {
+          var lastError = _getLastError();
+          if (callback) callback(!lastError);
+        });
+      } catch (e) {
+        if (callback) callback(false);
+      }
+    });
+  }
+
+  /**
+   * Belirtilen slot'tan preset okur
+   * @param {number} slotIndex - 0, 1 veya 2
+   * @param {Function} callback - callback(presetObject|null)
+   */
+  function loadFromSlot(slotIndex, callback) {
+    if (slotIndex < 0 || slotIndex >= MAX_SLOTS) {
+      callback(null);
+      return;
+    }
+
+    getAll(function(presets) {
+      callback(presets[slotIndex] || null);
+    });
+  }
+
+  /**
+   * Belirtilen slot'u temizler
+   * @param {number} slotIndex - 0, 1 veya 2
+   * @param {Function} callback - callback(success)
+   */
+  function clearSlot(slotIndex, callback) {
+    if (slotIndex < 0 || slotIndex >= MAX_SLOTS) {
+      if (callback) callback(false);
+      return;
+    }
+
+    var local = _getLocalStorage();
+    if (!local) {
+      if (callback) callback(false);
+      return;
+    }
+
+    getAll(function(presets) {
+      presets[slotIndex] = null;
+
+      var saveData = {};
+      saveData[STORAGE_KEY] = presets;
+
+      try {
+        local.set(saveData, function() {
+          var lastError = _getLastError();
+          if (callback) callback(!lastError);
+        });
+      } catch (e) {
+        if (callback) callback(false);
+      }
+    });
+  }
+
+  /**
+   * Mevcut courseMap'in otomatik yedeğini alır.
+   * Yıkıcı işlemlerden (preset yükleme, import, tümünü sil) önce çağrılır.
+   * @param {Object} courseMap - Yedeklenecek courseMap
+   * @param {Function} [callback] - callback(success)
+   */
+  function saveAutoBackup(courseMap, callback) {
+    var local = _getLocalStorage();
+    if (!local) {
+      if (callback) callback(false);
+      return;
+    }
+
+    var saveData = {};
+    saveData[AUTO_BACKUP_KEY] = {
+      courseMap: courseMap,
+      savedAt: new Date().toISOString()
+    };
+
+    try {
+      local.set(saveData, function() {
+        var lastError = _getLastError();
+        if (callback) callback(!lastError);
+      });
+    } catch (e) {
+      if (callback) callback(false);
+    }
+  }
+
+  /**
+   * Otomatik yedeği okur
+   * @param {Function} callback - callback(backupObject|null)
+   */
+  function getAutoBackup(callback) {
+    var local = _getLocalStorage();
+    if (!local) {
+      callback(null);
+      return;
+    }
+
+    try {
+      local.get([AUTO_BACKUP_KEY], function(data) {
+        var lastError = _getLastError();
+        if (lastError) {
+          callback(null);
+          return;
+        }
+        callback(data[AUTO_BACKUP_KEY] || null);
+      });
+    } catch (e) {
+      callback(null);
+    }
+  }
+
+  return {
+    getAll: getAll,
+    saveToSlot: saveToSlot,
+    loadFromSlot: loadFromSlot,
+    clearSlot: clearSlot,
+    saveAutoBackup: saveAutoBackup,
+    getAutoBackup: getAutoBackup
+  };
+})();
+
+// Objeleri değiştirilemez yap
 Object.freeze(Storage);
 Object.freeze(Storage.QUOTA);
+Object.freeze(PresetStorage);

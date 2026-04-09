@@ -104,6 +104,8 @@ function renameCourses(courseMap) {
     "courseNames"
   );
 
+  var appliedCount = 0;
+  
   for (var i = 0; i < elements.length; i++) {
     var el = elements[i];
     // Önce data-original-name'e bak, yoksa mevcut innerText'i al
@@ -116,10 +118,18 @@ function renameCourses(courseMap) {
         el.dataset.originalName = original;
       }
       el.innerText = courseMap[original];
+      appliedCount++;
     } else if (el.dataset.originalName) {
       // courseMap'te yok ama data-original-name var = silindi, orijinale dön
       el.innerText = el.dataset.originalName;
     }
+  }
+  
+  if (appliedCount > 0) {
+    Logger.log('DOM_A', 'İsimler uygulandı', {
+      applied: appliedCount,
+      total: keys.length
+    });
   }
 }
 
@@ -148,17 +158,34 @@ var RETRY_CONFIG = {
 function cleanOrphanMappings(detectedCourses) {
   // Hiç ders tespit edilmediyse temizleme yapma (sayfa henüz yüklenmemiş olabilir)
   if (!detectedCourses || detectedCourses.length === 0) {
+    Logger.log('ORPH', 'Orphan temizleme atlandı: tespit edilen ders yok', {
+      detectedCount: 0,
+      documentReady: document.readyState
+    });
     return;
   }
-  
+
   if (!Storage.isContextValid()) {
     return;
   }
-  
+
   Storage.get([CONFIG.STORAGE_KEYS.COURSE_MAP], function(data) {
     var courseMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+    var courseMapKeys = Object.keys(courseMap);
+
+    // Kısmi tespit koruması: tespit edilen ders sayısı courseMap'ten azsa
+    // muhtemelen sayfa tam yüklenmemiş - orphan temizleme yapma
+    if (courseMapKeys.length > 0 && detectedCourses.length < courseMapKeys.length) {
+      Logger.log('ORPH', 'Kısmi tespit: orphan temizleme atlandı', {
+        detectedCount: detectedCourses.length,
+        courseMapCount: courseMapKeys.length,
+        documentReady: document.readyState
+      });
+      return;
+    }
+
     var keysToDelete = [];
-    
+
     for (var originalName in courseMap) {
       if (courseMap.hasOwnProperty(originalName)) {
         if (detectedCourses.indexOf(originalName) === -1) {
@@ -166,12 +193,36 @@ function cleanOrphanMappings(detectedCourses) {
         }
       }
     }
-    
+
+    // Her çalıştırmada tam durum logla (silme olmasa bile)
+    Logger.log('ORPH', 'Orphan analizi', {
+      detectedCourses: detectedCourses,
+      detectedCount: detectedCourses.length,
+      courseMapKeys: courseMapKeys,
+      courseMapCount: courseMapKeys.length,
+      orphansFound: keysToDelete,
+      orphanCount: keysToDelete.length,
+      willDelete: keysToDelete.length > 0
+    });
+
     if (keysToDelete.length > 0) {
+      // Silme öncesi tam state logla
+      Logger.log('ORPH', 'Orphan silme ÖNCESİ', {
+        courseMap: courseMap,
+        deleting: keysToDelete
+      });
+
       keysToDelete.forEach(function(key) {
         delete courseMap[key];
       });
-      
+
+      // Silme sonrası state logla
+      Logger.log('ORPH', 'Orphan silme SONRASI', {
+        courseMap: courseMap,
+        remainingCount: Object.keys(courseMap).length,
+        deletedCount: keysToDelete.length
+      });
+
       Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: courseMap });
     }
   });
@@ -215,10 +266,26 @@ function doDetectCourses() {
     }
   }
   
+  // Tespit detayları logla
+  Logger.log('DOM_D', 'Ders tespiti detayları', {
+    rawElementCount: items.length,
+    afterFilter: courses.length,
+    uniqueCount: uniqueCourses.length,
+    courses: uniqueCourses,
+    documentReady: document.readyState,
+    topnavExists: !!document.querySelector(CONFIG.SELECTORS.OBSERVER_TARGET)
+  });
+
   var coursesString = JSON.stringify(uniqueCourses);
-  
+
   // Sadece değişiklik varsa storage'a yaz
   if (coursesString !== lastDetectedCourses) {
+    Logger.log('DOM_D', 'Ders tespiti değişti', {
+      count: uniqueCourses.length,
+      courses: uniqueCourses,
+      previousCount: lastDetectedCourses ? JSON.parse(lastDetectedCourses).length : 0
+    });
+    
     lastDetectedCourses = coursesString;
     Storage.set({ [CONFIG.STORAGE_KEYS.DETECTED_COURSES]: uniqueCourses });
     
@@ -334,7 +401,13 @@ var extensionEnabled = true;
 function applyAll(data) {
   // Extension enabled state'i güncelle
   extensionEnabled = data[CONFIG.STORAGE_KEYS.EXTENSION_ENABLED] !== false;
-  
+
+  Logger.log('ST_R', 'courseMap yüklendi', {
+    courseMapCount: Object.keys(data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {}).length,
+    courseMapKeys: Object.keys(data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {}),
+    enabled: extensionEnabled
+  });
+
   if (extensionEnabled) {
     // Extension açık - özel isimleri uygula
     renameCourses(data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {});
@@ -394,6 +467,15 @@ function cleanup() {
   if (isCleanedUp) return;
   isCleanedUp = true;
 
+  Logger.log('WARN', 'Context invalidated, cleanup yapıldı', {
+    hadObserver: !!observer,
+    hadDetectTimeout: !!detectTimeout,
+    hadRetryTimeout: !!retryTimeout,
+    coursesFound: coursesFound,
+    retryCount: retryCount
+  });
+  Logger.persist();
+
   if (observer) {
     observer.disconnect();
     observer = null;
@@ -431,7 +513,14 @@ function handleVisibilityChange() {
     cleanup();
     return;
   }
-  
+
+  Logger.log('INIT', 'Tab visibility değişti', {
+    visible: !document.hidden,
+    extensionEnabled: extensionEnabled,
+    coursesFound: coursesFound,
+    documentReady: document.readyState
+  });
+
   isTabVisible = !document.hidden;
   
   if (isTabVisible && extensionEnabled) {
@@ -463,13 +552,21 @@ try {
  * Migration kontrolü yapar, sonra normal işlemleri başlatır.
  */
 function initialize() {
-  // Önce migration kontrolü
-  Storage.migrate(function() {
-    // Normal başlatma işlemleri
-    loadAndApply();
+  // Logger'ı başlat
+  Logger.init(function() {
+    Logger.log('INIT', 'Extension başlatıldı', {
+      url: window.location.href,
+      visible: isTabVisible
+    });
     
-    // Retry mekanizmasını başlat (immediate detection dahil)
-    startRetryMechanism();
+    // Önce migration kontrolü
+    Storage.migrate(function() {
+      // Normal başlatma işlemleri
+      loadAndApply();
+      
+      // Retry mekanizmasını başlat (immediate detection dahil)
+      startRetryMechanism();
+    });
   });
 }
 
@@ -581,9 +678,31 @@ try {
 // ============================================
 
 Storage.onChanged(function(changes, areaName) {
+  // courseMap değişikliğinde detaylı diff logla
+  if (changes[CONFIG.STORAGE_KEYS.COURSE_MAP]) {
+    var change = changes[CONFIG.STORAGE_KEYS.COURSE_MAP];
+    var oldKeys = change.oldValue ? Object.keys(change.oldValue) : [];
+    var newKeys = change.newValue ? Object.keys(change.newValue) : [];
+    Logger.log('ST_W', 'courseMap değişti (onChanged)', {
+      area: areaName,
+      oldCount: oldKeys.length,
+      newCount: newKeys.length,
+      added: newKeys.filter(function(k) { return oldKeys.indexOf(k) === -1; }),
+      removed: oldKeys.filter(function(k) { return newKeys.indexOf(k) === -1; })
+    });
+  }
+
   // COURSE_MAP veya EXTENSION_ENABLED değişikliklerinde güncelle
-  if (changes[CONFIG.STORAGE_KEYS.COURSE_MAP] || 
+  if (changes[CONFIG.STORAGE_KEYS.COURSE_MAP] ||
       changes[CONFIG.STORAGE_KEYS.EXTENSION_ENABLED]) {
     loadAndApply();
   }
+});
+
+// ============================================
+// Sayfa Kapanmadan Önce Log Kaydetme
+// ============================================
+
+window.addEventListener('beforeunload', function() {
+  Logger.persist();
 });

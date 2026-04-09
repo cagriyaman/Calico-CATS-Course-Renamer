@@ -21,7 +21,31 @@ const els = {
   aboutModal: document.getElementById("aboutModal"),
   aboutBtn: document.getElementById("aboutBtn"),
   closeAbout: document.getElementById("closeAbout"),
-  extensionToggle: document.getElementById("extensionToggle")
+  extensionToggle: document.getElementById("extensionToggle"),
+  restoreBackupMain: document.getElementById("restoreBackupMain"),
+  // Tab Navigation
+  tabBtns: document.querySelectorAll(".tab-btn"),
+  tabCourses: document.getElementById("tabCourses"),
+  tabSettings: document.getElementById("tabSettings"),
+  // Settings Tab
+  loggerToggle: document.getElementById("loggerToggle"),
+  logViewer: document.getElementById("logViewer"),
+  logCount: document.getElementById("logCount"),
+  logOldest: document.getElementById("logOldest"),
+  exportLogs: document.getElementById("exportLogs"),
+  clearLogs: document.getElementById("clearLogs"),
+  logFilterBtns: document.querySelectorAll(".log-filter-btn"),
+  storageBarFill: document.getElementById("storageBarFill"),
+  storageUsed: document.getElementById("storageUsed"),
+  storageTotal: document.getElementById("storageTotal"),
+  storagePercent: document.getElementById("storagePercent"),
+  // Preset & Export/Import
+  presetSlots: document.getElementById("presetSlots"),
+  presetBackup: document.getElementById("presetBackup"),
+  exportCalico: document.getElementById("exportCalico"),
+  importCalicoBtn: document.getElementById("importCalicoBtn"),
+  importCalicoInput: document.getElementById("importCalicoInput"),
+  importStatus: document.getElementById("importStatus")
 };
 
 // ============================================
@@ -31,6 +55,7 @@ const els = {
 let editingCourse = null;
 let currentCategory = EMOJI_DATA.DEFAULT_CATEGORY;
 let extensionEnabled = true;
+let activeFilter = "all";
 
 // ============================================
 // UI Helper Fonksiyonları
@@ -407,6 +432,7 @@ function handleDeleteCourse(courseName) {
       delete courseMap[keyToDelete];
       
       Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: courseMap }, function() {
+        Logger.log('USER', 'Tekli silme', { course: keyToDelete });
         renderCourseList(detectedCourses, courseMap);
         showStatus("✓ Temizlendi, sayfayı yenileyin", 3000);
       }, showError);
@@ -466,6 +492,8 @@ function handleSaveAll() {
               input.classList.add("input-saved");
             }
           });
+          
+          Logger.log('USER', 'Tümü kaydedildi', { count: saveCount });
           showStatus("✓ " + saveCount + " ders kaydedildi", 2000, "success");
         }, showError);
       });
@@ -480,9 +508,26 @@ function handleSaveAll() {
  */
 function handleClearAll() {
   if (confirm("Tüm özel isimleri silmek istediğinizden emin misiniz?")) {
-    Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: {} }, function() {
-      loadAndRender();
-      showStatus("Tümü temizlendi", 2000, "success");
+    // Önce mevcut durumu otomatik yedekle
+    Storage.get([CONFIG.STORAGE_KEYS.COURSE_MAP], function(data) {
+      var currentMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+
+      function doClear() {
+        Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: {} }, function() {
+          Logger.log('USER', 'Tüm isimler temizlendi');
+          loadAndRender();
+          showStatus("Tümü temizlendi", 2000, "success");
+          renderAutoBackup();
+        }, showError);
+      }
+
+      if (Object.keys(currentMap).length > 0) {
+        PresetStorage.saveAutoBackup(currentMap, function() {
+          doClear();
+        });
+      } else {
+        doClear();
+      }
     }, showError);
   }
 }
@@ -637,12 +682,64 @@ function loadAndRender() {
     // UI state'ini güncelle
     updateUIState();
     
+    var courseMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+
     // Ders listesini render et
     renderCourseList(
       data[CONFIG.STORAGE_KEYS.DETECTED_COURSES] || [],
-      data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {}
+      courseMap
     );
+
+    // courseMap boşsa ve otomatik yedek varsa "Geri Yükle" butonunu göster
+    checkMainRestoreButton(courseMap);
   }, showError);
+}
+
+/**
+ * courseMap boşsa ve otomatik yedek varsa "Geri Yükle" butonunu göster
+ * @param {Object} courseMap - Mevcut ders eşleştirmeleri
+ */
+function checkMainRestoreButton(courseMap) {
+  var hasCustomNames = courseMap && Object.keys(courseMap).length > 0;
+
+  if (hasCustomNames) {
+    els.restoreBackupMain.style.display = "none";
+    return;
+  }
+
+  // courseMap boş - yedek var mı kontrol et
+  PresetStorage.getAutoBackup(function(backup) {
+    if (backup && backup.courseMap && Object.keys(backup.courseMap).length > 0) {
+      els.restoreBackupMain.style.display = "flex";
+    } else {
+      els.restoreBackupMain.style.display = "none";
+    }
+  });
+}
+
+/**
+ * Ana ekrandaki "Geri Yükle" butonunun click handler'ı
+ */
+function handleMainRestore() {
+  PresetStorage.getAutoBackup(function(backup) {
+    if (!backup || !backup.courseMap) {
+      showStatus("Yedek bulunamad\u0131", 2000, "error");
+      return;
+    }
+
+    var count = Object.keys(backup.courseMap).length;
+    var date = new Date(backup.savedAt);
+    var dateStr = date.getDate() + "/" + (date.getMonth() + 1) + " " +
+      String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+
+    if (!confirm(count + " ders yedekten geri y\u00FCklensin mi?\n(Yedek tarihi: " + dateStr + ")")) return;
+
+    Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: backup.courseMap }, function() {
+      Logger.log("USER", "Ana ekrandan yedek geri y\u00FCklendi", { courses: count });
+      showStatus("\u2713 " + count + " ders geri y\u00FCklendi", 2500);
+      loadAndRender();
+    }, showError);
+  });
 }
 
 /**
@@ -671,6 +768,7 @@ function handleToggleChange(enabled) {
   
   // Storage'a kaydet
   Storage.set({ [CONFIG.STORAGE_KEYS.EXTENSION_ENABLED]: enabled }, function() {
+    Logger.log('USER', 'Extension toggle değişti', { enabled: enabled });
     updateUIState();
     
     if (enabled) {
@@ -719,7 +817,10 @@ function setupEventListeners() {
   
   // Kaydet butonu
   els.saveAll.addEventListener("click", handleSaveAll);
-  
+
+  // Geri Yükle butonu (ana ekran)
+  els.restoreBackupMain.addEventListener("click", handleMainRestore);
+
   // Tümünü sil butonu
   els.clear.addEventListener("click", handleClearAll);
   
@@ -751,6 +852,823 @@ Storage.onChanged(function(changes, areaName) {
 });
 
 // ============================================
+// Tab Navigation
+// ============================================
+
+/**
+ * Sekme değiştirir
+ * @param {string} tabName - Sekme adı ("courses" veya "settings")
+ */
+function switchTab(tabName) {
+  // Butonları güncelle
+  els.tabBtns.forEach(function(btn) {
+    btn.classList.toggle("active", btn.dataset.tab === tabName);
+  });
+
+  // Panelleri güncelle
+  els.tabCourses.classList.toggle("active", tabName === "courses");
+  els.tabSettings.classList.toggle("active", tabName === "settings");
+
+  // Ayarlar sekmesine geçildiğinde verileri güncelle
+  if (tabName === "settings") {
+    renderPresetSlots();
+    renderAutoBackup();
+    updateLoggerToggle();
+    renderLogViewer();
+    updateStorageInfo();
+  }
+}
+
+// ============================================
+// Settings Tab - Logger
+// ============================================
+
+/**
+ * Logger toggle durumunu günceller
+ */
+function updateLoggerToggle() {
+  els.loggerToggle.checked = Logger.isEnabled();
+}
+
+/**
+ * Türkçe kategori etiketleri
+ */
+var CATEGORY_LABELS = {
+  INIT: "Başlangıç",
+  ST_R: "Okuma",
+  ST_W: "Yazma",
+  ST_D: "Silme",
+  DOM_D: "Tespit",
+  DOM_A: "Uygulama",
+  ORPH: "Orphan",
+  USER: "Kullanıcı",
+  ERR: "Hata",
+  WARN: "Uyarı"
+};
+
+/**
+ * Log viewer'ı render eder (filtreleme ve tarih ayırıcıları destekler)
+ */
+function renderLogViewer() {
+  var logs = Logger.getLogs();
+  var stats = Logger.getStats();
+
+  // İstatistikleri güncelle
+  els.logCount.textContent = stats.total;
+  els.logOldest.textContent = stats.oldest
+    ? Logger.formatDate(new Date(stats.oldest).getTime()) + " " + Logger.formatTimestamp(new Date(stats.oldest).getTime())
+    : "-";
+
+  // Log yoksa boş mesaj göster
+  if (logs.length === 0) {
+    els.logViewer.innerHTML = '<div class="log-empty">' +
+      (Logger.isEnabled() ? "Henüz log yok." : "Loglama kapalı.") +
+      "</div>";
+    return;
+  }
+
+  // Filtre uygula
+  var filtered = logs;
+  if (activeFilter !== "all") {
+    filtered = logs.filter(function(log) {
+      return log.c === activeFilter;
+    });
+  }
+
+  if (filtered.length === 0) {
+    els.logViewer.innerHTML = '<div class="log-empty">Bu kategoride log yok.</div>';
+    return;
+  }
+
+  // En yeni en üstte, tarih ayırıcılarıyla render et
+  var html = "";
+  var lastDate = null;
+
+  for (var i = filtered.length - 1; i >= 0; i--) {
+    var log = filtered[i];
+    var logDate = Logger.formatDate(log.t);
+
+    // Tarih ayırıcı (çok günlü loglar için)
+    if (logDate !== lastDate) {
+      html += '<div class="log-date-separator">' + logDate + "</div>";
+      lastDate = logDate;
+    }
+
+    html += renderLogEntry(log);
+  }
+
+  els.logViewer.innerHTML = html;
+}
+
+/**
+ * Tek bir log entry'sini render eder
+ * @param {Object} log - Log objesi
+ * @returns {string} HTML string
+ */
+function renderLogEntry(log) {
+  var time = Logger.formatTimestamp(log.t);
+  var catLabel = CATEGORY_LABELS[log.c] || log.c;
+  var message = log.m;
+  var data = log.d;
+
+  var html = '<div class="log-entry">';
+  html += '<span class="log-time">' + time + "</span>";
+  html += '<span class="log-category log-cat-' + log.c + '">' + escapeHtml(catLabel) + "</span>";
+  html += '<span class="log-message">' + escapeHtml(message) + "</span>";
+
+  if (data) {
+    html += '<div class="log-data">' + formatLogData(data) + "</div>";
+  }
+
+  html += "</div>";
+  return html;
+}
+
+/**
+ * Log verisini okunabilir formata çevirir
+ * @param {*} data - Log verisi
+ * @returns {string} Formatlanmış HTML string
+ */
+function formatLogData(data) {
+  if (typeof data !== "object" || data === null) {
+    return escapeHtml(String(data));
+  }
+
+  // Kısaltılmış veri göstergesi
+  if (data._truncated) {
+    return "<em>Veri kısıldı (" + data._size + " byte)</em>";
+  }
+
+  var parts = [];
+  for (var key in data) {
+    if (data.hasOwnProperty(key)) {
+      var val = data[key];
+      var displayVal;
+
+      if (Array.isArray(val)) {
+        if (val.length === 0) {
+          displayVal = "[]";
+        } else {
+          displayVal = "[" + val.length + " öğe] " + val.join(", ");
+        }
+      } else if (typeof val === "object" && val !== null) {
+        displayVal = JSON.stringify(val);
+      } else if (typeof val === "boolean") {
+        displayVal = val ? "evet" : "hayır";
+      } else {
+        displayVal = String(val);
+      }
+
+      parts.push('<span class="log-data-key">' + escapeHtml(key) + ":</span> " + escapeHtml(displayVal));
+    }
+  }
+
+  return parts.join("<br>");
+}
+
+/**
+ * HTML karakterlerini escape eder
+ * @param {string} str - Escape edilecek string
+ * @returns {string} Escape edilmiş string
+ */
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/**
+ * Logger toggle değişikliğini işler
+ */
+function handleLoggerToggle() {
+  if (els.loggerToggle.checked) {
+    Logger.enable(function(success) {
+      if (success) {
+        showStatus("✓ Loglama açıldı", 2000);
+        renderLogViewer();
+      } else {
+        els.loggerToggle.checked = false;
+        showStatus("❌ Loglama açılamadı", 2000, "error");
+      }
+    });
+  } else {
+    Logger.disable(function(success) {
+      showStatus("✓ Loglama kapatıldı", 2000);
+      renderLogViewer();
+    });
+  }
+}
+
+/**
+ * Logları JSON olarak indirir
+ */
+function handleExportLogs() {
+  var exportData = Logger.exportLogs();
+  
+  if (exportData.entries.length === 0) {
+    showStatus("İndirilecek log yok", 2000, "warning");
+    return;
+  }
+  
+  var dataStr = JSON.stringify(exportData, null, 2);
+  var blob = new Blob([dataStr], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  
+  var date = new Date().toISOString().split('T')[0];
+  var filename = 'calico-logs-' + date + '.json';
+  
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+  showStatus("✓ Loglar indirildi", 2000);
+  
+  Logger.log('USER', 'Loglar export edildi', { count: exportData.entries.length });
+}
+
+/**
+ * Logları temizler
+ */
+function handleClearLogs() {
+  Logger.clearLogs(function(success) {
+    if (success) {
+      showStatus("✓ Loglar temizlendi", 2000);
+      renderLogViewer();
+    } else {
+      showStatus("❌ Loglar temizlenemedi", 2000, "error");
+    }
+  });
+}
+
+/**
+ * Storage kullanım bilgisini günceller
+ */
+function updateStorageInfo() {
+  Storage.getUsage(function(usage) {
+    els.storageUsed.textContent = Storage.formatBytes(usage.used);
+    els.storageTotal.textContent = Storage.formatBytes(usage.total);
+    els.storagePercent.textContent = usage.percentage;
+    els.storageBarFill.style.width = usage.percentage + '%';
+  });
+}
+
+// ============================================
+// Preset Slotlar
+// ============================================
+
+/**
+ * Preset slotlarını render eder
+ */
+function renderPresetSlots() {
+  PresetStorage.getAll(function(presets) {
+    els.presetSlots.innerHTML = "";
+    var fragment = document.createDocumentFragment();
+
+    for (var i = 0; i < CONFIG.PRESET.MAX_SLOTS; i++) {
+      var preset = presets[i];
+      var slot = createPresetSlotElement(i, preset);
+      fragment.appendChild(slot);
+    }
+
+    els.presetSlots.appendChild(fragment);
+  });
+}
+
+/**
+ * Tek bir preset slot elementi oluşturur
+ * @param {number} index - Slot indeksi
+ * @param {Object|null} preset - Preset verisi
+ * @returns {HTMLElement}
+ */
+function createPresetSlotElement(index, preset) {
+  var slot = document.createElement("div");
+  slot.className = "preset-slot";
+
+  // Numara badge
+  var badge = document.createElement("span");
+  badge.className = "preset-slot-number " + (preset ? "filled" : "empty");
+  badge.textContent = index + 1;
+
+  // Info alanı
+  var info = document.createElement("div");
+  info.className = "preset-slot-info";
+
+  if (preset) {
+    var name = document.createElement("span");
+    name.className = "preset-slot-name";
+    name.textContent = preset.name;
+    name.title = preset.name;
+
+    var meta = document.createElement("span");
+    meta.className = "preset-slot-meta";
+    var courseCount = preset.courseMap ? Object.keys(preset.courseMap).length : 0;
+    var date = new Date(preset.createdAt);
+    meta.textContent = courseCount + " ders \u00B7 " + formatShortDate(date);
+
+    info.appendChild(name);
+    info.appendChild(meta);
+  } else {
+    var empty = document.createElement("span");
+    empty.className = "preset-slot-empty";
+    empty.textContent = "Bo\u015F slot";
+    info.appendChild(empty);
+  }
+
+  // Aksiyon butonları
+  var actions = document.createElement("div");
+  actions.className = "preset-slot-actions";
+
+  // Kaydet butonu (her zaman görünür)
+  var saveBtn = document.createElement("button");
+  saveBtn.className = "icon-btn";
+  saveBtn.title = "Mevcut dersleri kaydet";
+  saveBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+  saveBtn.addEventListener("click", function() {
+    handlePresetSave(index);
+  });
+  actions.appendChild(saveBtn);
+
+  if (preset) {
+    // Yükle butonu
+    var loadBtn = document.createElement("button");
+    loadBtn.className = "icon-btn";
+    loadBtn.title = "Bu preset\u2019i y\u00FCkle";
+    loadBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
+    loadBtn.addEventListener("click", function() {
+      handlePresetLoad(index);
+    });
+    actions.appendChild(loadBtn);
+
+    // Sil butonu
+    var clearBtn = document.createElement("button");
+    clearBtn.className = "icon-btn danger";
+    clearBtn.title = "Slot\u2019u temizle";
+    clearBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+    clearBtn.addEventListener("click", function() {
+      handlePresetClear(index);
+    });
+    actions.appendChild(clearBtn);
+  }
+
+  slot.appendChild(badge);
+  slot.appendChild(info);
+  slot.appendChild(actions);
+  return slot;
+}
+
+/**
+ * Kısa tarih formatı
+ * @param {Date} date
+ * @returns {string}
+ */
+function formatShortDate(date) {
+  var d = date.getDate();
+  var m = date.getMonth() + 1;
+  var h = String(date.getHours()).padStart(2, "0");
+  var min = String(date.getMinutes()).padStart(2, "0");
+  return d + "/" + m + " " + h + ":" + min;
+}
+
+/**
+ * Preset kaydetme - inline isim girişi gösterir
+ * @param {number} index - Slot indeksi
+ */
+function handlePresetSave(index) {
+  Storage.get([CONFIG.STORAGE_KEYS.COURSE_MAP], function(data) {
+    var courseMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+
+    if (Object.keys(courseMap).length === 0) {
+      showStatus("\u26A0\uFE0F Kaydedilecek ders yok", 2000, "warning");
+      return;
+    }
+
+    // Slot satırını bul ve inline input göster
+    var slotEl = els.presetSlots.children[index];
+    if (!slotEl) return;
+
+    var info = slotEl.querySelector(".preset-slot-info");
+    var oldHTML = info.innerHTML;
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "preset-name-input";
+    input.placeholder = CONFIG.PRESET.DEFAULT_NAMES[index];
+    input.maxLength = CONFIG.PRESET.MAX_NAME_LENGTH;
+    input.value = "";
+
+    info.innerHTML = "";
+    info.appendChild(input);
+    input.focus();
+
+    function doSave() {
+      var name = input.value.trim() || CONFIG.PRESET.DEFAULT_NAMES[index];
+      PresetStorage.saveToSlot(index, name, courseMap, function(success) {
+        if (success) {
+          Logger.log("USER", "Preset kaydedildi", { slot: index + 1, name: name, courses: Object.keys(courseMap).length });
+          showStatus("\u2713 Slot " + (index + 1) + " kaydedildi", 2000);
+          renderPresetSlots();
+        } else {
+          info.innerHTML = oldHTML;
+          showStatus("\u274C Kaydetme ba\u015Far\u0131s\u0131z", 2000, "error");
+        }
+      });
+    }
+
+    input.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") doSave();
+      if (e.key === "Escape") {
+        info.innerHTML = oldHTML;
+      }
+    });
+
+    input.addEventListener("blur", function() {
+      // Kısa gecikme: eğer Enter ile save olursa blur'dan önce save çalışsın
+      setTimeout(function() {
+        if (info.contains(input)) {
+          doSave();
+        }
+      }, 100);
+    });
+  }, showError);
+}
+
+/**
+ * Preset yükleme
+ * @param {number} index - Slot indeksi
+ */
+function handlePresetLoad(index) {
+  if (!confirm("Bu preset\u2019i y\u00FCklemek istedi\u011Finizden emin misiniz?\nMevcut ders adlar\u0131n\u0131z\u0131n yerine ge\u00E7ecektir.")) {
+    return;
+  }
+
+  PresetStorage.loadFromSlot(index, function(preset) {
+    if (!preset || !preset.courseMap) {
+      showStatus("\u274C Slot bo\u015F", 2000, "error");
+      return;
+    }
+
+    // Önce mevcut durumu otomatik yedekle
+    Storage.get([CONFIG.STORAGE_KEYS.COURSE_MAP], function(data) {
+      var currentMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+
+      function applyPreset() {
+        Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: preset.courseMap }, function() {
+          Logger.log("USER", "Preset y\u00FCklendi", { slot: index + 1, name: preset.name, courses: Object.keys(preset.courseMap).length });
+          showStatus("\u2713 \"" + preset.name + "\" y\u00FCklendi", 2500);
+          loadAndRender();
+          renderAutoBackup();
+        }, showError);
+      }
+
+      if (Object.keys(currentMap).length > 0) {
+        PresetStorage.saveAutoBackup(currentMap, function() {
+          applyPreset();
+        });
+      } else {
+        applyPreset();
+      }
+    }, showError);
+  });
+}
+
+/**
+ * Preset slot temizleme
+ * @param {number} index - Slot indeksi
+ */
+function handlePresetClear(index) {
+  if (!confirm("Slot " + (index + 1) + " temizlensin mi?")) return;
+
+  PresetStorage.clearSlot(index, function(success) {
+    if (success) {
+      Logger.log("USER", "Preset silindi", { slot: index + 1 });
+      showStatus("\u2713 Slot " + (index + 1) + " temizlendi", 2000);
+      renderPresetSlots();
+    } else {
+      showStatus("\u274C Temizleme ba\u015Far\u0131s\u0131z", 2000, "error");
+    }
+  });
+}
+
+// ============================================
+// Otomatik Yedek
+// ============================================
+
+/**
+ * Otomatik yedek barını render eder
+ */
+function renderAutoBackup() {
+  PresetStorage.getAutoBackup(function(backup) {
+    if (!backup || !backup.courseMap || Object.keys(backup.courseMap).length === 0) {
+      els.presetBackup.style.display = "none";
+      return;
+    }
+
+    var courseCount = Object.keys(backup.courseMap).length;
+    var date = new Date(backup.savedAt);
+
+    els.presetBackup.style.display = "flex";
+    els.presetBackup.innerHTML =
+      '<div class="backup-bar-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>' +
+      '<div class="backup-bar-info">' +
+        '<div class="backup-bar-title">Otomatik Yedek</div>' +
+        '<div class="backup-bar-meta">' + courseCount + " ders \u00B7 " + formatShortDate(date) + "</div>" +
+      "</div>" +
+      '<div class="backup-bar-action">' +
+        '<button id="restoreBackupBtn" class="btn-secondary btn-small">Geri Y\u00FCkle</button>' +
+      "</div>";
+
+    document.getElementById("restoreBackupBtn").addEventListener("click", function() {
+      handleRestoreBackup(backup);
+    });
+  });
+}
+
+/**
+ * Otomatik yedekten geri yükleme
+ * @param {Object} backup - Yedek verisi
+ */
+function handleRestoreBackup(backup) {
+  if (!confirm("Otomatik yedekten geri y\u00FCklemek istedi\u011Finizden emin misiniz?")) return;
+
+  Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: backup.courseMap }, function() {
+    Logger.log("USER", "Otomatik yedekten geri y\u00FCklendi", { courses: Object.keys(backup.courseMap).length });
+    showStatus("\u2713 Yedekten geri y\u00FCklendi", 2500);
+    loadAndRender();
+  }, showError);
+}
+
+// ============================================
+// .calico Export / Import
+// ============================================
+
+/**
+ * .calico dosyası olarak export eder
+ */
+function handleExportCalico() {
+  Storage.get([CONFIG.STORAGE_KEYS.COURSE_MAP], function(data) {
+    var courseMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+
+    if (Object.keys(courseMap).length === 0) {
+      showStatus("\u26A0\uFE0F D\u0131\u015Fa aktar\u0131lacak ders yok", 2000, "warning");
+      return;
+    }
+
+    var exportData = {
+      calico: CONFIG.FILE.VERSION,
+      type: CONFIG.FILE.TYPE_PRESET,
+      exportedAt: new Date().toISOString(),
+      courseMap: courseMap
+    };
+
+    var dataStr = JSON.stringify(exportData, null, 2);
+    var blob = new Blob([dataStr], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+
+    var date = new Date().toISOString().split("T")[0];
+    var filename = "calico-courses-" + date + CONFIG.FILE.EXTENSION;
+
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+
+    URL.revokeObjectURL(url);
+    Logger.log("USER", ".calico export", { courses: Object.keys(courseMap).length });
+    showStatus("\u2713 Dosya indirildi", 2000);
+  }, showError);
+}
+
+/**
+ * .calico dosyasını validate eder
+ * @param {Object} data - Parse edilmiş JSON
+ * @returns {{valid: boolean, error: string|null, courseMap: Object|null, warnings: string[]}}
+ */
+function validateCalicoFile(data) {
+  var result = { valid: false, error: null, courseMap: null, warnings: [] };
+
+  // Temel yapı kontrolü
+  if (!data || typeof data !== "object") {
+    result.error = "Ge\u00E7ersiz dosya format\u0131";
+    return result;
+  }
+
+  if (!data.calico || !data.type) {
+    result.error = "Bu bir .calico dosyas\u0131 de\u011Fil";
+    return result;
+  }
+
+  if (data.type !== CONFIG.FILE.TYPE_PRESET) {
+    result.error = "Desteklenmeyen dosya t\u00FCr\u00FC: " + data.type;
+    return result;
+  }
+
+  if (!data.courseMap || typeof data.courseMap !== "object") {
+    result.error = "Dosyada ders bulunamad\u0131";
+    return result;
+  }
+
+  var keys = Object.keys(data.courseMap);
+  if (keys.length === 0) {
+    result.error = "Dosyada ders bulunamad\u0131";
+    return result;
+  }
+
+  if (keys.length > CONFIG.FILE.MAX_COURSE_ENTRIES) {
+    result.error = "Dosya \u00E7ok fazla ders i\u00E7eriyor (" + keys.length + "/" + CONFIG.FILE.MAX_COURSE_ENTRIES + ")";
+    return result;
+  }
+
+  // Ders adı uzunluk kontrolü (truncate + uyarı)
+  var cleanMap = {};
+  var truncatedCount = 0;
+  var maxLen = CONFIG.INPUT.MAX_COURSE_NAME_LENGTH;
+
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    var val = data.courseMap[key];
+
+    if (typeof val !== "string") continue;
+
+    if (val.length > maxLen) {
+      val = val.substring(0, maxLen);
+      truncatedCount++;
+    }
+
+    cleanMap[key] = val;
+  }
+
+  if (Object.keys(cleanMap).length === 0) {
+    result.error = "Dosyada ge\u00E7erli ders bulunamad\u0131";
+    return result;
+  }
+
+  if (truncatedCount > 0) {
+    result.warnings.push(truncatedCount + " ders ad\u0131 k\u0131salt\u0131ld\u0131 (" + maxLen + " karakter limiti)");
+  }
+
+  result.valid = true;
+  result.courseMap = cleanMap;
+  return result;
+}
+
+/**
+ * .calico dosyasını işler (File objesi alır)
+ * @param {File} file - İşlenecek dosya
+ */
+function processImportFile(file) {
+  if (!file) return;
+
+  // Boyut kontrolü
+  if (file.size > CONFIG.FILE.MAX_IMPORT_SIZE) {
+    setImportStatus("Dosya \u00E7ok b\u00FCy\u00FCk (maks. " + (CONFIG.FILE.MAX_IMPORT_SIZE / 1024) + " KB)", "err");
+    return;
+  }
+
+  // Uzantı kontrolü
+  if (!file.name.endsWith(CONFIG.FILE.EXTENSION)) {
+    setImportStatus("Ge\u00E7ersiz dosya uzant\u0131s\u0131 (.calico bekleniyor)", "err");
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var parsed;
+    try {
+      parsed = JSON.parse(e.target.result);
+    } catch (err) {
+      setImportStatus("Ge\u00E7ersiz dosya format\u0131", "err");
+      return;
+    }
+
+    var validation = validateCalicoFile(parsed);
+    if (!validation.valid) {
+      setImportStatus(validation.error, "err");
+      return;
+    }
+
+    // Mevcut durumu otomatik yedekle ve import et
+    Storage.get([CONFIG.STORAGE_KEYS.COURSE_MAP], function(data) {
+      var currentMap = data[CONFIG.STORAGE_KEYS.COURSE_MAP] || {};
+
+      function applyImport() {
+        Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: validation.courseMap }, function() {
+          var count = Object.keys(validation.courseMap).length;
+          Logger.log("USER", ".calico import", { courses: count, file: file.name });
+
+          var msg = "\u2713 " + count + " ders y\u00FCklendi";
+          if (validation.warnings.length > 0) {
+            msg += " (" + validation.warnings.join(", ") + ")";
+          }
+          setImportStatus(msg, "ok");
+          showStatus("\u2713 Import ba\u015Far\u0131l\u0131", 2500);
+          loadAndRender();
+          renderAutoBackup();
+        }, showError);
+      }
+
+      if (Object.keys(currentMap).length > 0) {
+        PresetStorage.saveAutoBackup(currentMap, function() {
+          applyImport();
+        });
+      } else {
+        applyImport();
+      }
+    }, showError);
+  };
+
+  reader.onerror = function() {
+    setImportStatus("Dosya okunamad\u0131", "err");
+  };
+
+  reader.readAsText(file);
+}
+
+/**
+ * File input change handler
+ */
+function handleImportFileInput(event) {
+  var file = event.target.files[0];
+  event.target.value = "";
+  if (file) processImportFile(file);
+}
+
+/**
+ * Import butonuna tıklama handler'ı
+ * Firefox'ta popup içinde file picker açılınca popup kapanır.
+ * Bu yüzden Firefox'ta ayrı bir pencere (windows.create) açılır.
+ * Chrome'da doğrudan file picker kullanılır.
+ */
+function handleImportClick() {
+  if (browserAPI.isFirefox) {
+    // Firefox: bağımsız import penceresi aç
+    var importUrl = browserAPI.runtime.getURL("import.html");
+    browserAPI._raw.windows.create({
+      url: importUrl,
+      type: "popup",
+      width: 380,
+      height: 400
+    });
+  } else {
+    // Chrome: doğrudan file picker aç
+    els.importCalicoInput.click();
+  }
+}
+
+/**
+ * Import durum mesajını gösterir
+ * @param {string} msg - Mesaj
+ * @param {string} type - "ok" veya "err"
+ */
+function setImportStatus(msg, type) {
+  els.importStatus.textContent = msg;
+  els.importStatus.className = "import-status status-" + type;
+
+  // 5 saniye sonra temizle
+  setTimeout(function() {
+    els.importStatus.textContent = "";
+    els.importStatus.className = "import-status";
+  }, 5000);
+}
+
+/**
+ * Settings tab event listener'larını kurar
+ */
+function setupSettingsListeners() {
+  // Tab navigasyonu
+  els.tabBtns.forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      switchTab(btn.dataset.tab);
+    });
+  });
+
+  // Logger toggle
+  els.loggerToggle.addEventListener("change", handleLoggerToggle);
+
+  // Export/Clear
+  els.exportLogs.addEventListener("click", handleExportLogs);
+  els.clearLogs.addEventListener("click", handleClearLogs);
+
+  // Log filtre butonları
+  els.logFilterBtns.forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      els.logFilterBtns.forEach(function(b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      activeFilter = btn.dataset.filter;
+      renderLogViewer();
+    });
+  });
+
+  // .calico Export
+  els.exportCalico.addEventListener("click", handleExportCalico);
+
+  // .calico Import
+  els.importCalicoBtn.addEventListener("click", handleImportClick);
+  els.importCalicoInput.addEventListener("change", handleImportFileInput);
+}
+
+// ============================================
 // Initialization
 // ============================================
 
@@ -759,11 +1677,15 @@ Storage.onChanged(function(changes, areaName) {
  * Migration kontrolü yapar, sonra UI'ı yükler.
  */
 function initializeOptions() {
-  // Önce migration kontrolü
-  Storage.migrate(function() {
-    // UI'ı yükle
-    loadAndRender();
-    setupEventListeners();
+  // Logger'ı başlat
+  Logger.init(function() {
+    // Önce migration kontrolü
+    Storage.migrate(function() {
+      // UI'ı yükle
+      loadAndRender();
+      setupEventListeners();
+      setupSettingsListeners();
+    });
   });
 }
 

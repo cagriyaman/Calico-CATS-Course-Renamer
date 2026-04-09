@@ -7,6 +7,117 @@ ve [Semantic Versioning](https://semver.org/spec/v2.0.0.html) kullanır.
 
 ---
 
+## [1.2.0] - 2026-04-08
+
+### 🛡️ Yedekleme, Loglama & Hata Düzeltmesi
+
+Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzeltir, kapsamlı bir loglama altyapısı ekler, preset slot sistemi ile yedekleme/geri yükleme imkanı sunar ve `.calico` dosya formatı ile dışa/içe aktarım desteği getirir. Popup arayüzü iki sekmeli yapıya (Dersler | Ayarlar) geçirilmiştir.
+
+---
+
+### 🐛 Düzeltilen
+
+#### Ders Adı Silinme Sorunu (Kritik)
+- **cleanOrphanMappings() Kısmi Tespit Koruması:** Sayfa tam yüklenmeden çalışan orphan temizleme, tüm courseMap'i siliyordu. Artık tespit edilen ders sayısı courseMap'ten azsa temizleme atlanır ve durum loglanır
+  - Birden fazla kullanıcının bildirdiği "ders adları durduk yere siliniyor" sorununun kök nedeni
+  - `detectedCourses.length < courseMapKeys.length` → orphan temizleme yapılmaz
+  - `document.readyState` bilgisi log'a eklenir
+
+---
+
+### ✨ Eklenen
+
+#### Debug Loglama Sistemi
+- **Logger Modülü:** `storage.local` üzerinde çalışan kapsamlı loglama altyapısı (sync quota'yı etkilemez)
+  - Varsayılan olarak **açık** — kullanıcı sorun fark etmeden önce veriler yakalanır
+  - 10 kategori: INIT, ST_R, ST_W, ST_D, DOM_D, DOM_A, ORPH, USER, ERR, WARN
+  - Kritik kategoriler (ORPH, ST_W, ST_D, ERR, WARN) anında persist edilir (5s debounce atlanır)
+  - Milisaniye hassasiyetinde zaman damgası (HH:MM:SS.mmm)
+  - Maksimum 500 kayıt, 1000 byte veri limiti, otomatik truncation
+  - JSON olarak dışa aktarma, tarih ayırıcılarıyla görüntüleme, kategori filtreleme
+
+#### Sekme Tabanlı Arayüz (Dersler | Ayarlar)
+- **Tab Navigation:** Popup arayüzü iki sekmeye ayrıldı
+  - **Dersler:** Mevcut ders listesi, kaydet/sil butonları (eski ana ekran)
+  - **Ayarlar:** Preset slotlar, dışa/içe aktar, debug logları, depolama bilgisi
+- **Veri Modalı Kaldırıldı:** Eski "Veri" butonu ve modal'ı tamamen kaldırıldı
+
+#### Preset Slot Sistemi (3 Slot)
+- **Kaydet:** Mevcut ders adlarını isimlendirerek 3 slottan birine kaydedin
+  - Inline isim girişi (Enter/Escape/blur ile onay/iptal)
+  - Ders sayısı ve tarih bilgisi ile slot kartları
+- **Yükle:** Kaydedilmiş preset'i tek tıkla geri yükleyin
+  - Yüklemeden önce mevcut durum otomatik yedeklenir
+  - Onay diyalogu ile güvenli geri yükleme
+- **Temizle:** Slot'u boşaltın
+- **`storage.local`** üzerinde saklanır (sync quota'yı etkilemez)
+
+#### .calico Dosya Formatı (Dışa / İçe Aktar)
+- **Dışa Aktar:** Mevcut ders adlarını `.calico` uzantılı dosya olarak indirin
+  - JSON tabanlı özel format: `{ calico: "1.0", type: "course-preset", courseMap: {...} }`
+  - Farklı tarayıcılar arasında ders adlarını taşıma imkanı
+- **İçe Aktar:** `.calico` dosyasını yükleyerek ders adlarını geri getirin
+  - Dosya boyutu (512 KB), ders sayısı (200), karakter limiti kontrolü
+  - Geçersiz dosya formatı ve uzantı kontrolü
+  - İçe aktarmadan önce mevcut durum otomatik yedeklenir
+- **Firefox Uyumluluğu:** Firefox'ta popup içinde dosya seçici açılamadığı için `windows.create()` ile bağımsız import penceresi açılır (dosya seç + sürükle-bırak destekli)
+
+#### Otomatik Yedekleme
+- **Yıkıcı İşlem Koruması:** "Tümünü Sil", preset yükleme ve .calico import işlemlerinden önce mevcut courseMap otomatik yedeklenir
+- **Tek Slot Yedek:** `storage.local` üzerinde `autoBackup` key'i ile saklanır
+- **Geri Yükleme (Ayarlar):** Ayarlar sekmesinde yedek barı üzerinden geri yükleme
+- **Geri Yükleme (Ana Ekran):** courseMap boşken ve yedek varken, Kaydet butonunun yanında "Geri Yükle" butonu otomatik belirir
+  - Onay diyalogunda ders sayısı ve yedek tarihi gösterilir
+  - Geri yükleme sonrası buton otomatik kaybolur
+
+---
+
+### 🔧 Değiştirilen
+
+#### Storage Mimarisi
+- **storage.local Kullanımı:** Logger, PresetStorage ve AutoBackup artık `storage.local` (5 MB) üzerinde çalışır — `storage.sync` (100 KB) quota'sı korunur
+- **Storage.get/set/remove:** Logger.log() çağrıları eklendi (ST_R, ST_W, ST_D kategorileri)
+- **Storage.onChanged:** courseMap diff loglaması (eklenen/silinen key'ler)
+
+#### Content Script Loglaması
+- **doDetectCourses():** DOM_D kategorisiyle element sayısı, documentReady durumu loglanır
+- **applyAll():** ST_R ile courseMap key'leri ve sayısı loglanır
+- **handleVisibilityChange():** INIT ile görünürlük değişiklikleri loglanır
+- **cleanup():** WARN ile timer/observer durumu loglanır
+
+#### Config Genişletmeleri
+- `CONFIG.LOGGER`: MAX_ENTRIES, PERSIST_INTERVAL, CRITICAL_CATEGORIES, DATA_MAX_LENGTH
+- `CONFIG.PRESET`: MAX_SLOTS, STORAGE_KEY, AUTO_BACKUP_KEY, DEFAULT_NAMES, MAX_NAME_LENGTH
+- `CONFIG.FILE`: EXTENSION, VERSION, TYPE_PRESET, MAX_IMPORT_SIZE, MAX_COURSE_ENTRIES
+- Tüm yeni bloklar `Object.freeze()` ile korunur
+
+---
+
+### 📁 Yeni Dosyalar
+
+| Dosya | Açıklama |
+|-------|----------|
+| `import.html` | Firefox için bağımsız import penceresi HTML |
+| `import.js` | Import penceresi mantığı (dosya seç + sürükle-bırak + validation) |
+
+---
+
+### 📊 Dosya Değişiklikleri
+
+| Dosya | Değişiklik |
+|-------|------------|
+| `config.js` | LOGGER, PRESET, FILE blokları eklendi (~+40 satır) |
+| `storage.js` | Logger IIFE yeniden yazıldı, PresetStorage IIFE eklendi (~+700 satır) |
+| `content.js` | cleanOrphanMappings guard + kapsamlı loglama (~+50 satır) |
+| `options.html` | Tab nav, preset/export/import/restore bölümleri (~+80 satır) |
+| `options.css` | Tab, preset, backup, export/import, restore stilleri (~+180 satır) |
+| `options.js` | Preset, export/import, auto-backup, tab mantığı (~+500 satır) |
+| `import.html` | Yeni dosya (~120 satır) |
+| `import.js` | Yeni dosya (~170 satır) |
+| `manifest.json` | Versiyon 1.2.0 |
+
+---
+
 ## [1.0.3] - 2024-12-17
 
 ### 🧹 Otomatik Orphan Temizleme
@@ -327,8 +438,6 @@ External code review sonrası ek optimizasyonlar:
 
 ## [Unreleased]
 
-Gelecek sürümlerde planlananlar için [ROADMAP.md](ROADMAP.md) dosyasına bakınız.
-
 ### 🔮 Planlanıyor (v2.0.0)
 - ES6+ modernizasyonu (var → const/let)
 - Promise/async-await geçişi
@@ -349,6 +458,7 @@ Gelecek sürümlerde planlananlar için [ROADMAP.md](ROADMAP.md) dosyasına bak�
 
 | Sürüm | Tarih | Öne Çıkan |
 |-------|-------|-----------|
+| [1.2.0](#120---2026-04-08) | 2026-04-08 | 🛡️ Yedekleme, Loglama & Hata Düzeltmesi |
 | [1.0.3](#103---2024-12-17) | 2024-12-17 | 🧹 Otomatik Orphan Temizleme |
 | [1.0.2](#102---2024-12-17) | 2024-12-17 | 🎨 UI/UX İyileştirmeleri & Hata Düzeltmeleri |
 | [1.0.1](#101---2024-12-05) | 2024-12-05 | 🦊 Firefox & Cross-Browser Desteği |

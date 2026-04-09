@@ -59,6 +59,34 @@ const CONFIG = {
     MIN_COURSE_NAME_LENGTH: 1,     // Özel ders adı minimum karakter
     WARNING_THRESHOLD: 80,          // Uyarı gösterilecek karakter sayısı (%)
     FORBIDDEN_CHARS: []             // Yasaklı karakterler (şimdilik yok)
+  },
+
+  // Logger yapılandırması
+  LOGGER: {
+    MAX_ENTRIES: 500,                // Maksimum log sayısı (storage.local kullanıldığı için artırıldı)
+    PERSIST_INTERVAL: 5000,          // Normal loglar için persist aralığı (ms)
+    STORAGE_KEY_ENTRIES: "logEntries",
+    STORAGE_KEY_ENABLED: "loggerEnabled",
+    DATA_MAX_LENGTH: 1000,           // Log verisinin maksimum karakter uzunluğu
+    CRITICAL_CATEGORIES: ["ORPH", "ST_W", "ST_D", "ERR", "WARN"]  // Anında persist edilecek kategoriler
+  },
+
+  // Preset yapılandırması
+  PRESET: {
+    MAX_SLOTS: 3,                      // Preset slot sayısı
+    STORAGE_KEY: "presets",            // storage.local key'i
+    AUTO_BACKUP_KEY: "autoBackup",     // Otomatik yedek key'i
+    MAX_NAME_LENGTH: 40,               // Preset adı maksimum karakter
+    DEFAULT_NAMES: ["Slot 1", "Slot 2", "Slot 3"]
+  },
+
+  // Dosya export/import yapılandırması
+  FILE: {
+    EXTENSION: ".calico",
+    VERSION: "1.0",
+    TYPE_PRESET: "course-preset",
+    MAX_IMPORT_SIZE: 524288,           // 512 KB maksimum import dosya boyutu
+    MAX_COURSE_ENTRIES: 200            // Maksimum ders sayısı
   }
 };
 
@@ -74,3 +102,8 @@ Object.freeze(CONFIG.FILTERS);
 Object.freeze(CONFIG.FILTERS.EXCLUDED_NAMES);
 Object.freeze(CONFIG.INPUT);
 Object.freeze(CONFIG.INPUT.FORBIDDEN_CHARS);
+Object.freeze(CONFIG.LOGGER);
+Object.freeze(CONFIG.LOGGER.CRITICAL_CATEGORIES);
+Object.freeze(CONFIG.PRESET);
+Object.freeze(CONFIG.PRESET.DEFAULT_NAMES);
+Object.freeze(CONFIG.FILE);

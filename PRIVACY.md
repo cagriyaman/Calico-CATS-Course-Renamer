@@ -1,7 +1,7 @@
 # 🔒 Gizlilik Politikası | Privacy Policy
 
-> **Son Güncelleme | Last Updated:** 2026-01-02  
-> **Sürüm | Version:** 1.0.3
+> **Son Güncelleme | Last Updated:** 2026-04-08
+> **Sürüm | Version:** 1.2.0
 
 ---
 
@@ -46,9 +46,15 @@ Uzantının çalışması için aşağıdaki veriler **yalnızca yerel olarak** 
 | Tespit edilen dersler | CATS'tan algılanan ders listesi | Tarayıcı Storage (Sync) |
 | Uzantı durumu | Açık/Kapalı tercihi | Tarayıcı Storage (Sync) |
 | Storage versiyonu | Veri yapısı sürümü | Tarayıcı Storage (Sync) |
+| Debug logları | Uzantı olay kayıtları | Tarayıcı Storage (Local) |
+| Preset slotlar | Kaydedilmiş ders adı setleri (3 slot) | Tarayıcı Storage (Local) |
+| Otomatik yedek | Son silme/yükleme öncesi durum | Tarayıcı Storage (Local) |
+
+> **Not:** `storage.sync` (100 KB) tarayıcı hesabıyla senkronize edilir. `storage.local` (5 MB) yalnızca cihazda kalır, senkronize edilmez ve kişisel veri içermez.
 
 **Örnek veri yapısı:**
 ```json
+// storage.sync
 {
   "courseMap": {
     "BLG101 - Introduction to Programming": "💻 Programlama"
@@ -56,6 +62,13 @@ Uzantının çalışması için aşağıdaki veriler **yalnızca yerel olarak** 
   "detectedCourses": ["BLG101 - Introduction to Programming"],
   "extensionEnabled": true,
   "storageVersion": 1
+}
+
+// storage.local (yalnızca cihazda, senkronize edilmez)
+{
+  "logEntries": [...],
+  "presets": [null, null, null],
+  "autoBackup": { "courseMap": {...}, "savedAt": "..." }
 }
 ```
 
@@ -116,10 +129,9 @@ Bu uzantı aşağıdaki izinleri kullanır:
 #### 4.1 İzin Detayları
 
 **Storage İzni:**
-- Ders isim eşleştirmelerini saklar
-- Kullanıcı tercihlerini (açık/kapalı) saklar
-- Maksimum 100 KB veri saklayabilir
-- Tarayıcı hesabıyla senkronize edilebilir
+- `storage.sync`: Ders isim eşleştirmeleri ve tercihleri saklar (maks. 100 KB, senkronize)
+- `storage.local`: Debug logları, preset slotlar ve otomatik yedek saklar (maks. 5 MB, yalnızca cihazda)
+- Tarayıcı hesabıyla yalnızca sync verileri senkronize edilebilir
 
 **Host Permission (cats.iku.edu.tr):**
 - Uzantı SADECE bu domaine erişebilir
@@ -276,6 +288,11 @@ The following data is stored **locally only** for the extension to function:
 | Detected courses | Course list from CATS | Browser Storage (Sync) |
 | Extension state | Enabled/Disabled preference | Browser Storage (Sync) |
 | Storage version | Data structure version | Browser Storage (Sync) |
+| Debug logs | Extension event logs | Browser Storage (Local) |
+| Preset slots | Saved course name sets (3 slots) | Browser Storage (Local) |
+| Auto backup | State before last delete/load | Browser Storage (Local) |
+
+> **Note:** `storage.sync` (100 KB) syncs with your browser account. `storage.local` (5 MB) stays on-device only, is never synced, and contains no personal data.
 
 ---
 
@@ -371,7 +388,7 @@ You can view all stored data through browser developer tools (Storage tab).
 
 #### 6.3 Data Portability
 
-Export feature is not currently available. Can be planned for future releases.
+You can export your course names as a `.calico` file and import it on another browser or device. The `.calico` file is a JSON file with a custom extension and contains only course name mappings — no personal data.
 
 ---
 
@@ -436,7 +453,7 @@ This extension:
 
 <p align="center">
   <sub>
-    Bu gizlilik politikası en son <strong>2024-12-05</strong> tarihinde güncellenmiştir.<br>
-    This privacy policy was last updated on <strong>2024-12-05</strong>.
+    Bu gizlilik politikası en son <strong>2026-04-08</strong> tarihinde güncellenmiştir.<br>
+    This privacy policy was last updated on <strong>2026-04-08</strong>.
   </sub>
 </p>

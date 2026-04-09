@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Calico - İçe Aktar</title>
+  <style>
+    :root {
+      --primary: #ed802d;
+      --primary-dark: #c15e13;
+      --danger: #c62828;
+      --success: #2e7d32;
+      --text: #1a1a2e;
+      --text-sec: #6b6b8c;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 100%;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ed802d 0%, #c15e13 100%);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(69, 35, 12, 0.25);
+    }
+
+    .header .icon {
+      width: 22px;
+      height: 22px;
+      color: #fff;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .content {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .pick-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      box-shadow: 0 2px 6px rgba(69, 35, 12, 0.2);
+    }
+
+    .pick-btn:hover { background: var(--primary-dark); }
+    .pick-btn:active { transform: scale(0.98); }
+
+    .pick-btn .icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .separator {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-sec);
+      position: relative;
+    }
+
+    .separator::before,
+    .separator::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 38%;
+      height: 1px;
+      background: #e0e0e0;
+    }
+
+    .separator::before { left: 0; }
+    .separator::after { right: 0; }
+
+    .dropzone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 28px 16px;
+      border: 2px dashed #d0c0b0;
+      border-radius: 10px;
+      background: #fdf8f4;
+      color: #a08060;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: default;
+    }
+
+    .dropzone .icon {
+      width: 28px;
+      height: 28px;
+      color: #c0a080;
+      transition: color 0.2s;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(237, 128, 45, 0.08);
+      color: var(--primary);
+    }
+
+    .dropzone.dragover .icon {
+      color: var(--primary);
+    }
+
+    .status {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: none;
+    }
+
+    .status.visible { display: block; }
+    .status.ok { background: #e8f5e9; color: var(--success); }
+    .status.err { background: #ffebee; color: var(--danger); }
+    .status.warn { background: #fff8e1; color: #e65100; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <h1>.calico İçe Aktar</h1>
+  </div>
+
+  <div class="content">
+    <button id="pickBtn" class="pick-btn">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      Dosya Seç
+    </button>
+    <input type="file" id="fileInput" accept=".calico" style="display:none;">
+
+    <div class="separator">veya</div>
+
+    <div id="dropzone" class="dropzone">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <span>.calico dosyasını buraya sürükleyin</span>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="browser-polyfill.js"></script>
+  <script src="config.js"></script>
+  <script src="storage.js"></script>
+  <script src="import.js"></script>
+</body>
+</html>
