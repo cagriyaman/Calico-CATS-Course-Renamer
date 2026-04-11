@@ -9,9 +9,9 @@ ve [Semantic Versioning](https://semver.org/spec/v2.0.0.html) kullanır.
 
 ## [1.2.0] - 2026-04-08
 
-### 🛡️ Yedekleme, Loglama & Hata Düzeltmesi
+### 🛡️ Yedekleme, Olay Kayıtları & Hata Düzeltmesi
 
-Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzeltir, kapsamlı bir loglama altyapısı ekler, preset slot sistemi ile yedekleme/geri yükleme imkanı sunar ve `.calico` dosya formatı ile dışa/içe aktarım desteği getirir. Popup arayüzü iki sekmeli yapıya (Dersler | Ayarlar) geçirilmiştir.
+Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzeltir, kapsamlı bir olay kayıt altyapısı ekler, ders yedekleri sistemi ile yedekleme/geri yükleme imkanı sunar ve `.calico` dosya formatı ile dışa/içe aktarım desteği getirir. Popup arayüzü iki sekmeli yapıya (Dersler | Ayarlar) geçirilmiştir.
 
 ---
 
@@ -27,7 +27,7 @@ Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzelti
 
 ### ✨ Eklenen
 
-#### Debug Loglama Sistemi
+#### Olay Kayıtları Sistemi (Debug Logging)
 - **Logger Modülü:** `storage.local` üzerinde çalışan kapsamlı loglama altyapısı (sync quota'yı etkilemez)
   - Varsayılan olarak **açık** — kullanıcı sorun fark etmeden önce veriler yakalanır
   - 10 kategori: INIT, ST_R, ST_W, ST_D, DOM_D, DOM_A, ORPH, USER, ERR, WARN
@@ -39,17 +39,17 @@ Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzelti
 #### Sekme Tabanlı Arayüz (Dersler | Ayarlar)
 - **Tab Navigation:** Popup arayüzü iki sekmeye ayrıldı
   - **Dersler:** Mevcut ders listesi, kaydet/sil butonları (eski ana ekran)
-  - **Ayarlar:** Preset slotlar, dışa/içe aktar, debug logları, depolama bilgisi
+  - **Ayarlar:** Ders yedekleri, dışa/içe aktar, olay kayıtları, depolama bilgisi
 - **Veri Modalı Kaldırıldı:** Eski "Veri" butonu ve modal'ı tamamen kaldırıldı
 
-#### Preset Slot Sistemi (3 Slot)
-- **Kaydet:** Mevcut ders adlarını isimlendirerek 3 slottan birine kaydedin
+#### Ders Yedekleri Sistemi (3 Yuva)
+- **Kaydet:** Mevcut ders adlarını isimlendirerek 3 yuvadan birine kaydedin
   - Inline isim girişi (Enter/Escape/blur ile onay/iptal)
-  - Ders sayısı ve tarih bilgisi ile slot kartları
-- **Yükle:** Kaydedilmiş preset'i tek tıkla geri yükleyin
+  - Ders sayısı ve tarih bilgisi ile yedek kartları
+- **Yükle:** Kaydedilmiş yedeği tek tıkla geri yükleyin
   - Yüklemeden önce mevcut durum otomatik yedeklenir
   - Onay diyalogu ile güvenli geri yükleme
-- **Temizle:** Slot'u boşaltın
+- **Temizle:** Yuvayı boşaltın
 - **`storage.local`** üzerinde saklanır (sync quota'yı etkilemez)
 
 #### .calico Dosya Formatı (Dışa / İçe Aktar)
@@ -63,8 +63,8 @@ Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzelti
 - **Firefox Uyumluluğu:** Firefox'ta popup içinde dosya seçici açılamadığı için `windows.create()` ile bağımsız import penceresi açılır (dosya seç + sürükle-bırak destekli)
 
 #### Otomatik Yedekleme
-- **Yıkıcı İşlem Koruması:** "Tümünü Sil", preset yükleme ve .calico import işlemlerinden önce mevcut courseMap otomatik yedeklenir
-- **Tek Slot Yedek:** `storage.local` üzerinde `autoBackup` key'i ile saklanır
+- **Yıkıcı İşlem Koruması:** "Tümünü Sil", yedek yükleme ve .calico import işlemlerinden önce mevcut courseMap otomatik yedeklenir
+- **Tek Yuva Yedek:** `storage.local` üzerinde `autoBackup` key'i ile saklanır
 - **Geri Yükleme (Ayarlar):** Ayarlar sekmesinde yedek barı üzerinden geri yükleme
 - **Geri Yükleme (Ana Ekran):** courseMap boşken ve yedek varken, Kaydet butonunun yanında "Geri Yükle" butonu otomatik belirir
   - Onay diyalogunda ders sayısı ve yedek tarihi gösterilir
@@ -91,6 +91,15 @@ Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzelti
 - `CONFIG.FILE`: EXTENSION, VERSION, TYPE_PRESET, MAX_IMPORT_SIZE, MAX_COURSE_ENTRIES
 - Tüm yeni bloklar `Object.freeze()` ile korunur
 
+#### Firefox AMO Uyumluluğu (Güvenlik Hardening)
+- **innerHTML → DOM API:** `options.js` içindeki tüm `innerHTML` atamaları kaldırıldı ve güvenli DOM API çağrılarıyla (`createElement`, `textContent`, `appendChild`) değiştirildi
+  - Firefox AMO linter'ının "Unsafe assignment to innerHTML" uyarıları tamamen giderildi
+  - XSS saldırı yüzeyi daraltıldı (kullanıcı verisi artık `textContent` ile otomatik escape ediliyor)
+- **`createSvgIcon()` Helper:** SVG ikonları için `DOMParser` (`image/svg+xml` modu) tabanlı güvenli fabrika fonksiyonu eklendi
+- **`createLogEmpty()` Helper:** Log viewer boş durum mesajı için DOM helper
+- **`renderLogEntry` / `formatLogData` Refactor:** Artık HTML string yerine DOM elementi döndürüyor/üretiyor; `DocumentFragment` ile toplu ekleme sayesinde performans da korunuyor
+- **`escapeHtml()` Kaldırıldı:** `textContent` kullanımı nedeniyle gereksizleşti
+
 ---
 
 ### 📁 Yeni Dosyalar
@@ -111,7 +120,7 @@ Bu sürüm; ders adlarının durduk yere silinmesi sorununu tespit edip düzelti
 | `content.js` | cleanOrphanMappings guard + kapsamlı loglama (~+50 satır) |
 | `options.html` | Tab nav, preset/export/import/restore bölümleri (~+80 satır) |
 | `options.css` | Tab, preset, backup, export/import, restore stilleri (~+180 satır) |
-| `options.js` | Preset, export/import, auto-backup, tab mantığı (~+500 satır) |
+| `options.js` | Preset, export/import, auto-backup, tab mantığı + DOM API refactor (~+520 satır) |
 | `import.html` | Yeni dosya (~120 satır) |
 | `import.js` | Yeni dosya (~170 satır) |
 | `manifest.json` | Versiyon 1.2.0 |
@@ -458,7 +467,7 @@ External code review sonrası ek optimizasyonlar:
 
 | Sürüm | Tarih | Öne Çıkan |
 |-------|-------|-----------|
-| [1.2.0](#120---2026-04-08) | 2026-04-08 | 🛡️ Yedekleme, Loglama & Hata Düzeltmesi |
+| [1.2.0](#120---2026-04-08) | 2026-04-08 | 🛡️ Yedekleme, Olay Kayıtları & Hata Düzeltmesi |
 | [1.0.3](#103---2024-12-17) | 2024-12-17 | 🧹 Otomatik Orphan Temizleme |
 | [1.0.2](#102---2024-12-17) | 2024-12-17 | 🎨 UI/UX İyileştirmeleri & Hata Düzeltmeleri |
 | [1.0.1](#101---2024-12-05) | 2024-12-05 | 🦊 Firefox & Cross-Browser Desteği |

@@ -77,7 +77,7 @@ const CONFIG = {
     STORAGE_KEY: "presets",            // storage.local key'i
     AUTO_BACKUP_KEY: "autoBackup",     // Otomatik yedek key'i
     MAX_NAME_LENGTH: 40,               // Preset adı maksimum karakter
-    DEFAULT_NAMES: ["Slot 1", "Slot 2", "Slot 3"]
+    DEFAULT_NAMES: ["Yedek 1", "Yedek 2", "Yedek 3"]
   },
 
   // Dosya export/import yapılandırması

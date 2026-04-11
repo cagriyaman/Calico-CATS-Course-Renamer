@@ -99,6 +99,50 @@ function showError(errorInfo) {
 }
 
 // ============================================
+// DOM Helper Fonksiyonları
+// ============================================
+
+/**
+ * SVG ikon elementi oluşturur (innerHTML kullanmadan)
+ * DOMParser ile SVG namespace'inde parse eder - XSS riski yok
+ * @param {string} pathsMarkup - SVG iç elementleri (path, polyline, circle vs.)
+ * @param {Object} [attrs] - Ek SVG attribute'ları
+ * @returns {SVGElement} SVG elementi
+ */
+function createSvgIcon(pathsMarkup, attrs) {
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(
+    '<svg xmlns="http://www.w3.org/2000/svg">' + pathsMarkup + "</svg>",
+    "image/svg+xml"
+  );
+  var ns = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "icon");
+  svg.setAttribute("viewBox", (attrs && attrs.viewBox) || "0 0 24 24");
+  svg.setAttribute("fill", (attrs && attrs.fill) || "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", (attrs && attrs.strokeWidth) || "2");
+  if (attrs && attrs.strokeLinecap) svg.setAttribute("stroke-linecap", attrs.strokeLinecap);
+  var children = doc.documentElement.childNodes;
+  for (var i = 0; i < children.length; i++) {
+    svg.appendChild(document.importNode(children[i], true));
+  }
+  return svg;
+}
+
+/**
+ * Log boş durum mesajı elementi oluşturur
+ * @param {string} message - Gösterilecek mesaj
+ * @returns {HTMLElement} div.log-empty elementi
+ */
+function createLogEmpty(message) {
+  var div = document.createElement("div");
+  div.className = "log-empty";
+  div.textContent = message;
+  return div;
+}
+
+// ============================================
 // Storage Quota Kontrolü
 // ============================================
 
@@ -258,18 +302,22 @@ function validateAndShowError(input) {
  * @param {Object} courseMap - Ders isim eşleştirmeleri
  */
 function renderCourseList(detectedCourses, courseMap) {
-  els.list.innerHTML = "";
+  els.list.textContent = "";
 
   if (!detectedCourses || detectedCourses.length === 0) {
-    els.list.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-        </svg>
-        <h3>Henüz ders bulunamadı</h3>
-        <p>CATS portalına giriş yapıp sayfayı yenileyin</p>
-      </div>
-    `;
+    var emptyDiv = document.createElement("div");
+    emptyDiv.className = "empty-state";
+    var emptySvg = createSvgIcon(
+      '<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>'
+    );
+    var emptyH3 = document.createElement("h3");
+    emptyH3.textContent = "Henüz ders bulunamadı";
+    var emptyP = document.createElement("p");
+    emptyP.textContent = "CATS portalına giriş yapıp sayfayı yenileyin";
+    emptyDiv.appendChild(emptySvg);
+    emptyDiv.appendChild(emptyH3);
+    emptyDiv.appendChild(emptyP);
+    els.list.appendChild(emptyDiv);
     return;
   }
 
@@ -311,18 +359,20 @@ function createCourseRow(courseName, customName) {
   const emojiBtn = document.createElement("button");
   emojiBtn.className = "icon-btn";
   emojiBtn.title = "Emoji ekle";
-  emojiBtn.innerHTML = `
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"/>
-      <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-      <circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/>
-      <circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/>
-    </svg>
-    <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
-    </svg>
-  `;
+  emojiBtn.appendChild(createSvgIcon(
+    '<circle cx="12" cy="12" r="10"/>' +
+    '<path d="M8 14s1.5 2 4 2 4-2 4-2"/>' +
+    '<circle cx="9" cy="9" r="1" fill="currentColor" stroke="none"/>' +
+    '<circle cx="15" cy="9" r="1" fill="currentColor" stroke="none"/>'
+  ));
+  var plusSvg = createSvgIcon(
+    '<line x1="12" y1="8" x2="12" y2="16"/>' +
+    '<line x1="8" y1="12" x2="16" y2="12"/>',
+    { strokeWidth: "2.5", strokeLinecap: "round" }
+  );
+  plusSvg.classList.remove("icon");
+  plusSvg.classList.add("plus-icon");
+  emojiBtn.appendChild(plusSvg);
   emojiBtn.addEventListener("click", function() {
     openEmojiPicker(courseName);
   });
@@ -343,11 +393,9 @@ function createCourseRow(courseName, customName) {
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "icon-btn danger";
   deleteBtn.title = "Temizle";
-  deleteBtn.innerHTML = `
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-    </svg>
-  `;
+  deleteBtn.appendChild(createSvgIcon(
+    '<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>'
+  ));
   deleteBtn.addEventListener("click", function() {
     handleDeleteCourse(courseName);
   });
@@ -560,7 +608,7 @@ function closeEmojiPicker() {
  */
 function renderEmojiGrid(category) {
   currentCategory = category;
-  els.emojiGrid.innerHTML = "";
+  els.emojiGrid.textContent = "";
 
   var emojis = EMOJI_DATA.getCategory(category);
   
@@ -921,9 +969,10 @@ function renderLogViewer() {
 
   // Log yoksa boş mesaj göster
   if (logs.length === 0) {
-    els.logViewer.innerHTML = '<div class="log-empty">' +
-      (Logger.isEnabled() ? "Henüz log yok." : "Loglama kapalı.") +
-      "</div>";
+    els.logViewer.textContent = "";
+    els.logViewer.appendChild(createLogEmpty(
+      Logger.isEnabled() ? "Henüz kayıt yok." : "Kayıt tutma kapalı."
+    ));
     return;
   }
 
@@ -936,12 +985,13 @@ function renderLogViewer() {
   }
 
   if (filtered.length === 0) {
-    els.logViewer.innerHTML = '<div class="log-empty">Bu kategoride log yok.</div>';
+    els.logViewer.textContent = "";
+    els.logViewer.appendChild(createLogEmpty("Bu kategoride kayıt yok."));
     return;
   }
 
   // En yeni en üstte, tarih ayırıcılarıyla render et
-  var html = "";
+  var fragment = document.createDocumentFragment();
   var lastDate = null;
 
   for (var i = filtered.length - 1; i >= 0; i--) {
@@ -950,56 +1000,74 @@ function renderLogViewer() {
 
     // Tarih ayırıcı (çok günlü loglar için)
     if (logDate !== lastDate) {
-      html += '<div class="log-date-separator">' + logDate + "</div>";
+      var sep = document.createElement("div");
+      sep.className = "log-date-separator";
+      sep.textContent = logDate;
+      fragment.appendChild(sep);
       lastDate = logDate;
     }
 
-    html += renderLogEntry(log);
+    fragment.appendChild(renderLogEntry(log));
   }
 
-  els.logViewer.innerHTML = html;
+  els.logViewer.textContent = "";
+  els.logViewer.appendChild(fragment);
 }
 
 /**
- * Tek bir log entry'sini render eder
+ * Tek bir log entry'sini DOM element olarak render eder
  * @param {Object} log - Log objesi
- * @returns {string} HTML string
+ * @returns {HTMLElement} Log entry elementi
  */
 function renderLogEntry(log) {
-  var time = Logger.formatTimestamp(log.t);
-  var catLabel = CATEGORY_LABELS[log.c] || log.c;
-  var message = log.m;
-  var data = log.d;
+  var entry = document.createElement("div");
+  entry.className = "log-entry";
 
-  var html = '<div class="log-entry">';
-  html += '<span class="log-time">' + time + "</span>";
-  html += '<span class="log-category log-cat-' + log.c + '">' + escapeHtml(catLabel) + "</span>";
-  html += '<span class="log-message">' + escapeHtml(message) + "</span>";
+  var timeSpan = document.createElement("span");
+  timeSpan.className = "log-time";
+  timeSpan.textContent = Logger.formatTimestamp(log.t);
+  entry.appendChild(timeSpan);
 
-  if (data) {
-    html += '<div class="log-data">' + formatLogData(data) + "</div>";
+  var catSpan = document.createElement("span");
+  catSpan.className = "log-category log-cat-" + log.c;
+  catSpan.textContent = CATEGORY_LABELS[log.c] || log.c;
+  entry.appendChild(catSpan);
+
+  var msgSpan = document.createElement("span");
+  msgSpan.className = "log-message";
+  msgSpan.textContent = log.m;
+  entry.appendChild(msgSpan);
+
+  if (log.d) {
+    var dataDiv = document.createElement("div");
+    dataDiv.className = "log-data";
+    formatLogData(log.d, dataDiv);
+    entry.appendChild(dataDiv);
   }
 
-  html += "</div>";
-  return html;
+  return entry;
 }
 
 /**
- * Log verisini okunabilir formata çevirir
+ * Log verisini DOM elementlerine dönüştürür
  * @param {*} data - Log verisi
- * @returns {string} Formatlanmış HTML string
+ * @param {HTMLElement} container - Hedef container element
  */
-function formatLogData(data) {
+function formatLogData(data, container) {
   if (typeof data !== "object" || data === null) {
-    return escapeHtml(String(data));
+    container.textContent = String(data);
+    return;
   }
 
   // Kısaltılmış veri göstergesi
   if (data._truncated) {
-    return "<em>Veri kısıldı (" + data._size + " byte)</em>";
+    var em = document.createElement("em");
+    em.textContent = "Veri kısıldı (" + data._size + " byte)";
+    container.appendChild(em);
+    return;
   }
 
-  var parts = [];
+  var first = true;
   for (var key in data) {
     if (data.hasOwnProperty(key)) {
       var val = data[key];
@@ -1019,22 +1087,15 @@ function formatLogData(data) {
         displayVal = String(val);
       }
 
-      parts.push('<span class="log-data-key">' + escapeHtml(key) + ":</span> " + escapeHtml(displayVal));
+      if (!first) container.appendChild(document.createElement("br"));
+      var keySpan = document.createElement("span");
+      keySpan.className = "log-data-key";
+      keySpan.textContent = key + ":";
+      container.appendChild(keySpan);
+      container.appendChild(document.createTextNode(" " + displayVal));
+      first = false;
     }
   }
-
-  return parts.join("<br>");
-}
-
-/**
- * HTML karakterlerini escape eder
- * @param {string} str - Escape edilecek string
- * @returns {string} Escape edilmiş string
- */
-function escapeHtml(str) {
-  var div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 /**
@@ -1044,16 +1105,16 @@ function handleLoggerToggle() {
   if (els.loggerToggle.checked) {
     Logger.enable(function(success) {
       if (success) {
-        showStatus("✓ Loglama açıldı", 2000);
+        showStatus("✓ Kayıt tutma açıldı", 2000);
         renderLogViewer();
       } else {
         els.loggerToggle.checked = false;
-        showStatus("❌ Loglama açılamadı", 2000, "error");
+        showStatus("❌ Kayıt tutma açılamadı", 2000, "error");
       }
     });
   } else {
     Logger.disable(function(success) {
-      showStatus("✓ Loglama kapatıldı", 2000);
+      showStatus("✓ Kayıt tutma kapatıldı", 2000);
       renderLogViewer();
     });
   }
@@ -1066,7 +1127,7 @@ function handleExportLogs() {
   var exportData = Logger.exportLogs();
   
   if (exportData.entries.length === 0) {
-    showStatus("İndirilecek log yok", 2000, "warning");
+    showStatus("İndirilecek kayıt yok", 2000, "warning");
     return;
   }
   
@@ -1083,9 +1144,9 @@ function handleExportLogs() {
   a.click();
   
   URL.revokeObjectURL(url);
-  showStatus("✓ Loglar indirildi", 2000);
+  showStatus("✓ Kayıtlar indirildi", 2000);
   
-  Logger.log('USER', 'Loglar export edildi', { count: exportData.entries.length });
+  Logger.log('USER', 'Kayıtlar dışa aktarıldı', { count: exportData.entries.length });
 }
 
 /**
@@ -1094,10 +1155,10 @@ function handleExportLogs() {
 function handleClearLogs() {
   Logger.clearLogs(function(success) {
     if (success) {
-      showStatus("✓ Loglar temizlendi", 2000);
+      showStatus("✓ Kayıtlar temizlendi", 2000);
       renderLogViewer();
     } else {
-      showStatus("❌ Loglar temizlenemedi", 2000, "error");
+      showStatus("❌ Kayıtlar temizlenemedi", 2000, "error");
     }
   });
 }
@@ -1123,7 +1184,7 @@ function updateStorageInfo() {
  */
 function renderPresetSlots() {
   PresetStorage.getAll(function(presets) {
-    els.presetSlots.innerHTML = "";
+    els.presetSlots.textContent = "";
     var fragment = document.createDocumentFragment();
 
     for (var i = 0; i < CONFIG.PRESET.MAX_SLOTS; i++) {
@@ -1172,7 +1233,7 @@ function createPresetSlotElement(index, preset) {
   } else {
     var empty = document.createElement("span");
     empty.className = "preset-slot-empty";
-    empty.textContent = "Bo\u015F slot";
+    empty.textContent = "Boş yuva";
     info.appendChild(empty);
   }
 
@@ -1184,7 +1245,11 @@ function createPresetSlotElement(index, preset) {
   var saveBtn = document.createElement("button");
   saveBtn.className = "icon-btn";
   saveBtn.title = "Mevcut dersleri kaydet";
-  saveBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+  saveBtn.appendChild(createSvgIcon(
+    '<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>' +
+    '<polyline points="17 21 17 13 7 13 7 21"/>' +
+    '<polyline points="7 3 7 8 15 8"/>'
+  ));
   saveBtn.addEventListener("click", function() {
     handlePresetSave(index);
   });
@@ -1194,8 +1259,11 @@ function createPresetSlotElement(index, preset) {
     // Yükle butonu
     var loadBtn = document.createElement("button");
     loadBtn.className = "icon-btn";
-    loadBtn.title = "Bu preset\u2019i y\u00FCkle";
-    loadBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
+    loadBtn.title = "Bu yedeği yükle";
+    loadBtn.appendChild(createSvgIcon(
+      '<polyline points="1 4 1 10 7 10"/>' +
+      '<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'
+    ));
     loadBtn.addEventListener("click", function() {
       handlePresetLoad(index);
     });
@@ -1204,8 +1272,10 @@ function createPresetSlotElement(index, preset) {
     // Sil butonu
     var clearBtn = document.createElement("button");
     clearBtn.className = "icon-btn danger";
-    clearBtn.title = "Slot\u2019u temizle";
-    clearBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+    clearBtn.title = "Yedeği sil";
+    clearBtn.appendChild(createSvgIcon(
+      '<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>'
+    ));
     clearBtn.addEventListener("click", function() {
       handlePresetClear(index);
     });
@@ -1249,7 +1319,7 @@ function handlePresetSave(index) {
     if (!slotEl) return;
 
     var info = slotEl.querySelector(".preset-slot-info");
-    var oldHTML = info.innerHTML;
+    var saveHandled = false; // Re-entrancy koruması (Escape/success sonrası blur'u engelle)
 
     var input = document.createElement("input");
     input.type = "text";
@@ -1258,20 +1328,22 @@ function handlePresetSave(index) {
     input.maxLength = CONFIG.PRESET.MAX_NAME_LENGTH;
     input.value = "";
 
-    info.innerHTML = "";
+    info.textContent = "";
     info.appendChild(input);
     input.focus();
 
     function doSave() {
+      if (saveHandled) return;
+      saveHandled = true;
       var name = input.value.trim() || CONFIG.PRESET.DEFAULT_NAMES[index];
       PresetStorage.saveToSlot(index, name, courseMap, function(success) {
         if (success) {
-          Logger.log("USER", "Preset kaydedildi", { slot: index + 1, name: name, courses: Object.keys(courseMap).length });
-          showStatus("\u2713 Slot " + (index + 1) + " kaydedildi", 2000);
+          Logger.log("USER", "Yedek kaydedildi", { slot: index + 1, name: name, courses: Object.keys(courseMap).length });
+          showStatus("✓ " + (index + 1) + ". yedek kaydedildi", 2000);
           renderPresetSlots();
         } else {
-          info.innerHTML = oldHTML;
-          showStatus("\u274C Kaydetme ba\u015Far\u0131s\u0131z", 2000, "error");
+          renderPresetSlots();
+          showStatus("❌ Kaydetme başarısız", 2000, "error");
         }
       });
     }
@@ -1279,14 +1351,15 @@ function handlePresetSave(index) {
     input.addEventListener("keydown", function(e) {
       if (e.key === "Enter") doSave();
       if (e.key === "Escape") {
-        info.innerHTML = oldHTML;
+        saveHandled = true;
+        renderPresetSlots();
       }
     });
 
     input.addEventListener("blur", function() {
       // Kısa gecikme: eğer Enter ile save olursa blur'dan önce save çalışsın
       setTimeout(function() {
-        if (info.contains(input)) {
+        if (!saveHandled && info.contains(input)) {
           doSave();
         }
       }, 100);
@@ -1299,13 +1372,13 @@ function handlePresetSave(index) {
  * @param {number} index - Slot indeksi
  */
 function handlePresetLoad(index) {
-  if (!confirm("Bu preset\u2019i y\u00FCklemek istedi\u011Finizden emin misiniz?\nMevcut ders adlar\u0131n\u0131z\u0131n yerine ge\u00E7ecektir.")) {
+  if (!confirm("Bu yedeği yüklemek istediğinizden emin misiniz?\nMevcut ders adlarınızın yerine geçecektir.")) {
     return;
   }
 
   PresetStorage.loadFromSlot(index, function(preset) {
     if (!preset || !preset.courseMap) {
-      showStatus("\u274C Slot bo\u015F", 2000, "error");
+      showStatus("❌ Yedek boş", 2000, "error");
       return;
     }
 
@@ -1315,8 +1388,8 @@ function handlePresetLoad(index) {
 
       function applyPreset() {
         Storage.set({ [CONFIG.STORAGE_KEYS.COURSE_MAP]: preset.courseMap }, function() {
-          Logger.log("USER", "Preset y\u00FCklendi", { slot: index + 1, name: preset.name, courses: Object.keys(preset.courseMap).length });
-          showStatus("\u2713 \"" + preset.name + "\" y\u00FCklendi", 2500);
+          Logger.log("USER", "Yedek yüklendi", { slot: index + 1, name: preset.name, courses: Object.keys(preset.courseMap).length });
+          showStatus("✓ \"" + preset.name + "\" yüklendi", 2500);
           loadAndRender();
           renderAutoBackup();
         }, showError);
@@ -1338,12 +1411,12 @@ function handlePresetLoad(index) {
  * @param {number} index - Slot indeksi
  */
 function handlePresetClear(index) {
-  if (!confirm("Slot " + (index + 1) + " temizlensin mi?")) return;
+  if (!confirm((index + 1) + ". yedek silinsin mi?")) return;
 
   PresetStorage.clearSlot(index, function(success) {
     if (success) {
-      Logger.log("USER", "Preset silindi", { slot: index + 1 });
-      showStatus("\u2713 Slot " + (index + 1) + " temizlendi", 2000);
+      Logger.log("USER", "Yedek silindi", { slot: index + 1 });
+      showStatus("✓ " + (index + 1) + ". yedek silindi", 2000);
       renderPresetSlots();
     } else {
       showStatus("\u274C Temizleme ba\u015Far\u0131s\u0131z", 2000, "error");
@@ -1369,19 +1442,43 @@ function renderAutoBackup() {
     var date = new Date(backup.savedAt);
 
     els.presetBackup.style.display = "flex";
-    els.presetBackup.innerHTML =
-      '<div class="backup-bar-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>' +
-      '<div class="backup-bar-info">' +
-        '<div class="backup-bar-title">Otomatik Yedek</div>' +
-        '<div class="backup-bar-meta">' + courseCount + " ders \u00B7 " + formatShortDate(date) + "</div>" +
-      "</div>" +
-      '<div class="backup-bar-action">' +
-        '<button id="restoreBackupBtn" class="btn-secondary btn-small">Geri Y\u00FCkle</button>' +
-      "</div>";
+    els.presetBackup.textContent = "";
 
-    document.getElementById("restoreBackupBtn").addEventListener("click", function() {
+    // İkon
+    var iconDiv = document.createElement("div");
+    iconDiv.className = "backup-bar-icon";
+    iconDiv.appendChild(createSvgIcon(
+      '<polyline points="1 4 1 10 7 10"/>' +
+      '<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>'
+    ));
+
+    // Bilgi
+    var infoDiv = document.createElement("div");
+    infoDiv.className = "backup-bar-info";
+    var titleDiv = document.createElement("div");
+    titleDiv.className = "backup-bar-title";
+    titleDiv.textContent = "Otomatik Yedek";
+    var metaDiv = document.createElement("div");
+    metaDiv.className = "backup-bar-meta";
+    metaDiv.textContent = courseCount + " ders \u00B7 " + formatShortDate(date);
+    infoDiv.appendChild(titleDiv);
+    infoDiv.appendChild(metaDiv);
+
+    // Aksiyon
+    var actionDiv = document.createElement("div");
+    actionDiv.className = "backup-bar-action";
+    var restoreBtn = document.createElement("button");
+    restoreBtn.id = "restoreBackupBtn";
+    restoreBtn.className = "btn-secondary btn-small";
+    restoreBtn.textContent = "Geri Y\u00FCkle";
+    restoreBtn.addEventListener("click", function() {
       handleRestoreBackup(backup);
     });
+    actionDiv.appendChild(restoreBtn);
+
+    els.presetBackup.appendChild(iconDiv);
+    els.presetBackup.appendChild(infoDiv);
+    els.presetBackup.appendChild(actionDiv);
   });
 }
 

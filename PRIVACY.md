@@ -46,8 +46,8 @@ Uzantının çalışması için aşağıdaki veriler **yalnızca yerel olarak** 
 | Tespit edilen dersler | CATS'tan algılanan ders listesi | Tarayıcı Storage (Sync) |
 | Uzantı durumu | Açık/Kapalı tercihi | Tarayıcı Storage (Sync) |
 | Storage versiyonu | Veri yapısı sürümü | Tarayıcı Storage (Sync) |
-| Debug logları | Uzantı olay kayıtları | Tarayıcı Storage (Local) |
-| Preset slotlar | Kaydedilmiş ders adı setleri (3 slot) | Tarayıcı Storage (Local) |
+| Olay kayıtları | Uzantı içi işlem ve hata kayıtları | Tarayıcı Storage (Local) |
+| Ders yedekleri | Kaydedilmiş ders adı setleri (3 yuva) | Tarayıcı Storage (Local) |
 | Otomatik yedek | Son silme/yükleme öncesi durum | Tarayıcı Storage (Local) |
 
 > **Not:** `storage.sync` (100 KB) tarayıcı hesabıyla senkronize edilir. `storage.local` (5 MB) yalnızca cihazda kalır, senkronize edilmez ve kişisel veri içermez.
@@ -130,7 +130,7 @@ Bu uzantı aşağıdaki izinleri kullanır:
 
 **Storage İzni:**
 - `storage.sync`: Ders isim eşleştirmeleri ve tercihleri saklar (maks. 100 KB, senkronize)
-- `storage.local`: Debug logları, preset slotlar ve otomatik yedek saklar (maks. 5 MB, yalnızca cihazda)
+- `storage.local`: Olay kayıtları, ders yedekleri ve otomatik yedek saklar (maks. 5 MB, yalnızca cihazda)
 - Tarayıcı hesabıyla yalnızca sync verileri senkronize edilebilir
 
 **Host Permission (cats.iku.edu.tr):**
@@ -288,8 +288,8 @@ The following data is stored **locally only** for the extension to function:
 | Detected courses | Course list from CATS | Browser Storage (Sync) |
 | Extension state | Enabled/Disabled preference | Browser Storage (Sync) |
 | Storage version | Data structure version | Browser Storage (Sync) |
-| Debug logs | Extension event logs | Browser Storage (Local) |
-| Preset slots | Saved course name sets (3 slots) | Browser Storage (Local) |
+| Event logs | Extension activity and error logs | Browser Storage (Local) |
+| Course backups | Saved course name sets (3 slots) | Browser Storage (Local) |
 | Auto backup | State before last delete/load | Browser Storage (Local) |
 
 > **Note:** `storage.sync` (100 KB) syncs with your browser account. `storage.local` (5 MB) stays on-device only, is never synced, and contains no personal data.

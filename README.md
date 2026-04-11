@@ -47,8 +47,8 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 
 | Özellik | Açıklama |
 |---------|----------|
-| **Preset Slotlar** | 3 kayıt slotuna ders adlarınızı isimlendirerek yedekleyin, tek tıkla geri yükleyin |
-| **Otomatik Yedek** | "Tümünü Sil", preset yükleme veya import öncesi mevcut durum otomatik yedeklenir |
+| **Ders Yedekleri** | 3 yedek yuvasına ders adlarınızı isimlendirerek yedekleyin, tek tıkla geri yükleyin |
+| **Otomatik Yedek** | "Tümünü Sil", yedek yükleme veya import öncesi mevcut durum otomatik yedeklenir |
 | **.calico Dışa Aktar** | Ders adlarını `.calico` dosyası olarak indirin |
 | **.calico İçe Aktar** | Dosyayı yükleyerek farklı tarayıcıya veya cihaza taşıyın |
 | **Akıllı Geri Yükleme** | Ders adları kaybolduğunda ana ekranda "Geri Yükle" butonu otomatik belirir |
@@ -61,7 +61,8 @@ A Browser extension that improves UX for Istanbul Kultur University's student po
 - ✅ **Performans Optimizasyonu:** Tab gizliyken işlem yapmaz
 - ✅ **Hata Toleransı:** Sayfa yapısı değişse bile çalışmaya devam eder
 - ✅ **Güvenli:** Sadece CATS portalında çalışır, veri dışarı göndermez
-- ✅ **Debug Loglama:** Sorun teşhisi için kapsamlı olay kaydı (varsayılan açık, storage.local)
+- ✅ **XSS Hardening:** Tüm DOM oluşturma işlemleri güvenli DOM API (`createElement`, `textContent`) ile yapılır — `innerHTML` kullanılmaz (Firefox AMO uyumlu)
+- ✅ **Olay Kayıtları:** Sorun teşhisi için kapsamlı olay kaydı (varsayılan açık, storage.local)
 
 ---
 
@@ -183,9 +184,9 @@ Orijinal:  "BLG101 - Introduction to Programming - Fall 2024"
 - Kapalıyken orijinal ders isimleri gösterilir
 - Ayarlarınız korunur, tekrar açtığınızda geri gelir
 
-#### 💾 Preset Slotlar (Ayarlar Sekmesi)
-- 3 kayıt slotuna ders adlarınızı isimlendirerek yedekleyin
-- Kaydedilmiş preset'i tek tıkla geri yükleyin
+#### 💾 Ders Yedekleri (Ayarlar Sekmesi)
+- 3 yedek yuvasına ders adlarınızı isimlendirerek yedekleyin
+- Kaydedilmiş yedeği tek tıkla geri yükleyin
 - Yükleme öncesi mevcut durum otomatik yedeklenir
 
 #### 📂 .calico Dışa / İçe Aktar (Ayarlar Sekmesi)
@@ -194,7 +195,7 @@ Orijinal:  "BLG101 - Introduction to Programming - Fall 2024"
 - Firefox'ta otomatik olarak bağımsız import penceresi açılır
 
 #### 🛡️ Otomatik Yedekleme
-- "Tümünü Sil", preset yükleme, import işlemlerinden önce otomatik yedek alınır
+- "Tümünü Sil", yedek yükleme, import işlemlerinden önce otomatik yedek alınır
 - Ders adları kaybolduğunda ana ekranda "Geri Yükle" butonu otomatik belirir
 
 ---
@@ -260,13 +261,13 @@ Orijinal:  "BLG101 - Introduction to Programming - Fall 2024"
 
 // storage.local (yalnızca cihazda — 5 MB limit)
 {
-  // Debug logları
+  // Olay kayıtları (debug logları)
   "logEntries": [
     { "t": 1712500000000, "c": "ST_W", "m": "courseMap kaydedildi", "d": {...} }
   ],
   "loggerEnabled": true,
 
-  // Preset slotlar (3 slot, null = boş)
+  // Ders yedekleri (3 yuva, null = boş)
   "presets": [
     { "name": "1. Dönem", "courseMap": {...}, "createdAt": "..." },
     null,
@@ -518,7 +519,7 @@ Bu uzantı kullanıcı gizliliğine büyük önem verir. Detaylı bilgi için [P
 
 **Verileriniz nerede saklanır?**
 - Ders adları `storage.sync` ile tarayıcı hesabınızda senkronize edilir
-- Loglar, preset'ler ve yedekler `storage.local` ile yalnızca cihazda kalır
+- Olay kayıtları, ders yedekleri ve otomatik yedek `storage.local` ile yalnızca cihazda kalır
 - Hiçbir veri harici sunuculara gönderilmez
 
 ---
